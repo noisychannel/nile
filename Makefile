@@ -1,14 +1,30 @@
+CC=g++
+#CNN_DIR = /Users/austinma/git/cnn/
+CNN_DIR=/export/a04/gkumar/code/cnn/
+EIGEN=/export/a04/gkumar/code/eigen/
+CNN_BUILD_DIR=$(CNN_DIR)/build
+INCS=-I$(CNN_DIR) -I$(CNN_BUILD_DIR) -I$(EIGEN)
+LIBS=-L$(CNN_BUILD_DIR)/cnn/
+FINAL=-lcnn
+CFLAGS=
+BINDIR=bin
+SRCDIR=src
+
 .PHONY: clean
-all: bin/embedding bin/pro
+all: $(BINDIR)/embedding $(BINDIR)/pro $(BINDIR)/rnnContextRule
+#all: $(BINDIR)/embedding $(BINDIR)/pro
 
-bin/embedding: src/embedding.cc
+$(BINDIR)/embedding: $(SRCDIR)/embedding.cc
+	mkdir -p $(BINDIR)
+	g++ $(SRCDIR)/embedding.cc -o $(BINDIR)/embedding
+
+bin/rnnContextRule: src/rnnContextRule.cc
 	mkdir -p bin
-	g++ src/embedding.cc -o bin/embedding
+	g++ -std=c++11 $(CFLAGS) $(LIBS) $(INCS) $(SRCDIR)/rnnContextRule.cc -o $(BINDIR)/rnnContextRule $(FINAL)
 
-CNN_DIR = /Users/austinma/git/cnn/
 bin/pro: src/pro.cc src/utils.h
-	mkdir -p bin
-	g++ -std=c++11 -L$(CNN_DIR)/build/cnn/ -I$(CNN_DIR) src/pro.cc -o bin/pro -lcnn
+	mkdir -p $(BINDIR)
+	g++ -std=c++11 $(CFLAGS) $(LIBS) $(INCS) $(SRCDIR)/pro.cc -o $(BINDIR)/pro $(FINAL)
 
 clean:
-	rm -rf bin/embedding bin/pro
+	rm -rf $(BINDIR)/*
