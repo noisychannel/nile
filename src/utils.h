@@ -61,8 +61,8 @@ map<string, double> parse_feature_string(string input) {
     vector<string> kvp = tokenize(piece, "=");
     if (kvp.size() != 2) {
       cerr << "Invalid feature name-value pair: \"" << boost::algorithm::join(kvp, "=") << "\n";
+      exit(1);
     }
-    exit(1);
 
     string name = kvp[0];
     double value = std::stod(kvp[1]);
