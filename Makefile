@@ -1,7 +1,8 @@
 CC=g++
-#CNN_DIR = /Users/austinma/git/cnn/
-CNN_DIR=/export/a04/gkumar/code/cnn/
-EIGEN=/export/a04/gkumar/code/eigen/
+CNN_DIR = /Users/austinma/git/cnn/
+#CNN_DIR=/export/a04/gkumar/code/cnn/
+EIGEN = /Users/austinma/git/eigen
+#EIGEN=/export/a04/gkumar/code/eigen/
 CNN_BUILD_DIR=$(CNN_DIR)/build
 INCS=-I$(CNN_DIR) -I$(CNN_BUILD_DIR) -I$(EIGEN)
 LIBS=-L$(CNN_BUILD_DIR)/cnn/
@@ -22,7 +23,7 @@ bin/rnnContextRule: src/rnnContextRule.cc
 	mkdir -p bin
 	g++ -std=c++11 $(CFLAGS) $(LIBS) $(INCS) $(SRCDIR)/rnnContextRule.cc -o $(BINDIR)/rnnContextRule $(FINAL)
 
-bin/pro: src/pro.cc src/utils.h
+bin/pro: src/pro.cc src/utils.h src/kbest_hypothesis.h src/pair_sampler.h
 	mkdir -p $(BINDIR)
 	g++ -std=c++11 $(CFLAGS) $(LIBS) $(INCS) $(SRCDIR)/pro.cc -o $(BINDIR)/pro $(FINAL)
 
