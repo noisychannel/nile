@@ -9,6 +9,7 @@
 #include <iostream>
 #include <fstream>
 #include <unordered_set>
+#include <climits>
 #include "pair_sampler.h"
 
 using namespace std;
@@ -18,6 +19,10 @@ using namespace cnn;
 // number of unique feature names found therewithin
 unordered_set<string> get_feature_names(string filename, unsigned max_size) {
   unordered_set<string> feature_names;
+  if (max_size == 0) {
+    return feature_names;
+  }
+
   ifstream input_stream(filename);
   for (string line; getline(input_stream, line);) {
     KbestHypothesis hyp = KbestHypothesis::parse(line);
@@ -29,9 +34,14 @@ unordered_set<string> get_feature_names(string filename, unsigned max_size) {
         return feature_names;
       }
     }
+    cerr << hyp.sentence_id << "\r";
   }
   input_stream.close();
   return feature_names;
+}
+
+unordered_set<string> get_feature_names(string filename) {
+  return get_feature_names(filename, UINT_MAX);
 }
 
 int main(int argc, char** argv) {
@@ -49,28 +59,59 @@ int main(int argc, char** argv) {
     exit(1);
   }
   const string kbest_filename = argv[1];
-  unordered_set<string> feature_names = get_feature_names(kbest_filename, 1000);
+
+  cerr << "Reading feature names from k-best list...\n";
+  unordered_set<string> feature_names = get_feature_names(kbest_filename, 10000);
+  unsigned num_dimensions = feature_names.size();
+  cerr << "Found " << num_dimensions << " features.\n";
+
+  cerr << "Building feature name-id maps...\n";
   map<string, unsigned> feat2id;
   map<unsigned, string> id2feat;
-
   unsigned feat_map_index = 0;
   for (string name : feature_names) {
     feat2id[name] = feat_map_index;
     id2feat[feat_map_index] = name;
     feat_map_index++;
   }
- 
+
+  cerr << "Building model...\n"; 
   cnn::Initialize(argc, argv);
   Model m;
   SimpleSGDTrainer sgd(&m);
 
-  unsigned num_dimensions = feature_names.size();
-  cerr << "Found " << num_dimensions << " features.\n";
   double margin = 1.0;
-  double learning_rate = 1.0;
-  Parameters& p_w = *m.add_parameters({1, num_dimensions});
+  double learning_rate = 1.0e-2;
   vector<float> ref_features(num_dimensions);
   vector<float> hyp_features(num_dimensions);
+
+  #define NONLINEAR
+  #ifdef NONLINEAR
+  unsigned hidden_size = 10;
+  Parameters& p_w1 = *m.add_parameters({hidden_size, num_dimensions});
+  Parameters& p_w2 = *m.add_parameters({1, hidden_size});
+  Parameters& p_b = *m.add_parameters({hidden_size});
+
+  Hypergraph hg;
+  VariableIndex i_w1 = hg.add_parameter(&p_w1);
+  VariableIndex i_w2 = hg.add_parameter(&p_w2);
+  VariableIndex i_b = hg.add_parameter(&p_b);
+  VariableIndex i_r = hg.add_input({num_dimensions}, &ref_features); // Reference feature vector
+  VariableIndex i_h = hg.add_input({num_dimensions}, &hyp_features); // Hypothesis feature vector
+  VariableIndex i_rs1 = hg.add_function<Multilinear>({i_b, i_w1, i_r}); // Reference score
+  VariableIndex i_hs1 = hg.add_function<Multilinear>({i_b, i_w1, i_h}); // Hypothesis score
+  VariableIndex i_rs2 = hg.add_function<Tanh>({i_rs1});
+  VariableIndex i_hs2 = hg.add_function<Tanh>({i_hs1});
+  VariableIndex i_rs3 = hg.add_function<Concatenate>({i_rs2});
+  VariableIndex i_hs3 = hg.add_function<Concatenate>({i_hs2});
+  VariableIndex i_rs4 = hg.add_function<MatrixMultiply>({i_w2, i_rs3});
+  VariableIndex i_hs4 = hg.add_function<MatrixMultiply>({i_w2, i_hs3});
+  VariableIndex i_g = hg.add_function<ConstantMinusX>({i_rs4}, margin); // margin - reference_score
+  VariableIndex i_l = hg.add_function<Sum>({i_g, i_hs4}); // margin - reference_score + hypothesis_score
+  VariableIndex i_rl = hg.add_function<Rectify>({i_l}); // max(0, margin - ref_score + hyp_score)
+
+  #else
+  Parameters& p_w = *m.add_parameters({1, num_dimensions});
 
   Hypergraph hg;
   VariableIndex i_w = hg.add_parameter(&p_w); // The weight vector 
@@ -81,10 +122,12 @@ int main(int argc, char** argv) {
   VariableIndex i_g = hg.add_function<ConstantMinusX>({i_rs}, margin); // margin - reference_score
   VariableIndex i_l = hg.add_function<Sum>({i_g, i_hs}); // margin - reference_score + hypothesis_score
   VariableIndex i_rl = hg.add_function<Rectify>({i_l}); // max(0, margin - ref_score + hyp_score)
+  #endif
 
+  cerr << "Training model...\n";
   for (unsigned iteration = 0; iteration < 100; iteration++) {
     HypothesisPair hyp_pair;
-    PairSampler* sampler = new PairSampler(kbest_filename, 10);
+    PairSampler* sampler = new PairSampler(kbest_filename, 100);
 
     double loss = 0.0;
     while (sampler->next(hyp_pair)) {
@@ -92,14 +135,16 @@ int main(int argc, char** argv) {
         ref_features[i] = 0.0;
         hyp_features[i] = 0.0;
       }
-      for (auto it = hyp_pair.first.features.begin(); it != hyp_pair.first.features.end(); ++it) {
-        if (feat2id[it->first] < num_dimensions) { 
-          ref_features[feat2id[it->first]] = it->second;
+      for (auto it = hyp_pair.first->features.begin(); it != hyp_pair.first->features.end(); ++it) {
+        unsigned id = feat2id[it->first];
+        if (id < num_dimensions) { 
+          ref_features[id] = it->second;
         }
       }
-      for (auto it = hyp_pair.second.features.begin(); it != hyp_pair.second.features.end(); ++it) {
-        if (feat2id[it->first] < num_dimensions) {
-          hyp_features[feat2id[it->first]] = it->second;
+      for (auto it = hyp_pair.second->features.begin(); it != hyp_pair.second->features.end(); ++it) {
+        unsigned id = feat2id[it->first];
+        if (id < num_dimensions) {
+          hyp_features[id] = it->second;
         }
       }
       loss += as_scalar(hg.forward());
@@ -113,10 +158,10 @@ int main(int argc, char** argv) {
     sampler = NULL;
   }
 
-  cerr << "Final weight vector:" << endl;
+  /*cerr << "Final weight vector:" << endl;
   for (unsigned i = 0; i < num_dimensions; ++i) {
     cout << id2feat[i] << " " << TensorTools::AccessElement(p_w.values, {0, i}) << "\n";
-  }
+  }*/
 
   return 0;
 }

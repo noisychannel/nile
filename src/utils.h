@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -5,19 +6,26 @@
 #include <cassert>
 #include <cctype>
 #include <boost/algorithm/string/join.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/regex.hpp>
 
 using namespace std;
 
-vector<string> tokenize(string input, string delimiter) {
+vector<string> tokenize(string input, string delimiter, int max_times) {
   vector<string> tokens;
+  //tokens.reserve(max_times);
   size_t last = 0;
   size_t next = 0;
-  while ((next = input.find(delimiter, last)) != string::npos) {
+  while ((next = input.find(delimiter, last)) != string::npos && tokens.size() < max_times) {
     tokens.push_back(input.substr(last, next-last));
     last = next + delimiter.length();
   }
   tokens.push_back(input.substr(last));
   return tokens;
+}
+
+vector<string> tokenize(string input, string delimiter) {
+  return tokenize(input, delimiter, input.length());
 }
 
 vector<string> tokenize(string input, char delimiter) {
@@ -58,7 +66,7 @@ vector<string> strip(vector<string> input) {
 map<string, double> parse_feature_string(string input) {
   map<string, double> output;
   for (string piece : tokenize(input, " ")) {
-    vector<string> kvp = tokenize(piece, "=");
+    vector<string> kvp = tokenize(piece, "=", 1);
     if (kvp.size() != 2) {
       cerr << "Invalid feature name-value pair: \"" << boost::algorithm::join(kvp, "=") << "\n";
       exit(1);
