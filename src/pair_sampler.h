@@ -4,7 +4,7 @@
 #include "kbest_hypothesis.h"
 using namespace std;
 
-typedef pair<KbestHypothesis, KbestHypothesis> HypothesisPair;
+typedef pair<KbestHypothesis*, KbestHypothesis*> HypothesisPair;
 class PairSampler {
 private:
   ifstream* input_file;
@@ -14,6 +14,7 @@ private:
 
   unsigned samples_per_sentence;
   unsigned samples_taken;
+  unsigned failures;
 
 public:
   PairSampler(string filename, unsigned samples_per_sentence);
@@ -45,7 +46,7 @@ PairSampler::~PairSampler() {
   }
 }
 
-bool PairSampler::next(HypothesisPair& out) { 
+bool PairSampler::next(HypothesisPair& out) {
   while (samples_taken >= samples_per_sentence || current_sent_hypotheses.size() < 2) {
     if (!read_next_hyp_set()) {
       return false;
@@ -61,23 +62,26 @@ bool PairSampler::next(HypothesisPair& out) {
     unsigned j = rand() % current_sent_hypotheses.size();
 
     if (current_sent_hypotheses[i].metric_score - current_sent_hypotheses[j].metric_score == 0.0) {
+      failures++;
       continue;
     }
 
     if (current_sent_hypotheses[i].metric_score > current_sent_hypotheses[j].metric_score) {
-      out = make_pair(current_sent_hypotheses[i], current_sent_hypotheses[j]);
+      out = make_pair(&current_sent_hypotheses[i], &current_sent_hypotheses[j]);
     }
     else {
-      out = make_pair(current_sent_hypotheses[j], current_sent_hypotheses[i]);
+      out = make_pair(&current_sent_hypotheses[j], &current_sent_hypotheses[i]);
     }
-    assert (out.first.sentence_id == out.second.sentence_id);
-    //assert (out.first.sentence_id.length() > 0);
+    assert (out.first->sentence_id == out.second->sentence_id);
+    assert (out.first->sentence_id.length() > 0);
     samples_taken++;
     return true;
   }
 
-  cerr << "Unable to find a hypothesis pair with different metric scores after 100 tries!" << endl;
-  exit(1);
+  samples_taken = samples_per_sentence;
+  return next(out);
+  //cerr << "Unable to find a hypothesis pair with different metric scores after 100 tries!" << endl;
+  //exit(1);
 }
 
 bool PairSampler::read_next_hyp_set() { 
@@ -100,8 +104,9 @@ bool PairSampler::read_next_hyp_set() {
     }
     if (hyp.sentence_id != current_sent_id) {
       next_hypothesis = new KbestHypothesis(hyp);
-      current_sent_id = hyp.sentence_id;
       cerr << current_sent_id << "\r";
+      current_sent_id = hyp.sentence_id;
+      failures = 0;
       return true;
     }
     current_sent_hypotheses.push_back(hyp);
@@ -120,4 +125,3 @@ bool PairSampler::read_next_hyp_set() {
   } 
   return true;
 }
-

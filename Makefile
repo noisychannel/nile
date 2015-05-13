@@ -6,8 +6,8 @@ EIGEN = /Users/austinma/git/eigen
 CNN_BUILD_DIR=$(CNN_DIR)/build
 INCS=-I$(CNN_DIR) -I$(CNN_BUILD_DIR) -I$(EIGEN)
 LIBS=-L$(CNN_BUILD_DIR)/cnn/
-FINAL=-lcnn
-CFLAGS=
+FINAL=-lcnn -lboost_regex
+CFLAGS=-O3
 BINDIR=bin
 SRCDIR=src
 
