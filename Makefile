@@ -6,13 +6,13 @@ EIGEN = /Users/austinma/git/eigen
 CNN_BUILD_DIR=$(CNN_DIR)/build
 INCS=-I$(CNN_DIR) -I$(CNN_BUILD_DIR) -I$(EIGEN)
 LIBS=-L$(CNN_BUILD_DIR)/cnn/
-FINAL=-lcnn -lboost_regex
+FINAL=-lcnn -lboost_regex -lboost_serialization
 CFLAGS=-O3
 BINDIR=bin
 SRCDIR=src
 
 .PHONY: clean
-all: $(BINDIR)/embedding $(BINDIR)/pro $(BINDIR)/rnnContextRule
+all: $(BINDIR)/embedding $(BINDIR)/pro $(BINDIR)/rnnContextRule $(BINDIR)/rerank
 #all: $(BINDIR)/embedding $(BINDIR)/pro
 
 $(BINDIR)/embedding: $(SRCDIR)/embedding.cc
@@ -26,6 +26,10 @@ bin/rnnContextRule: src/rnnContextRule.cc
 bin/pro: src/pro.cc src/utils.h src/kbest_hypothesis.h src/pair_sampler.h
 	mkdir -p $(BINDIR)
 	g++ -std=c++11 $(CFLAGS) $(LIBS) $(INCS) $(SRCDIR)/pro.cc -o $(BINDIR)/pro $(FINAL)
+
+bin/rerank: src/rerank.cc src/utils.h src/kbest_hypothesis.h src/pair_sampler.h
+	mkdir -p $(BINDIR)
+	g++ -std=c++11 $(CFLAGS) $(LIBS) $(INCS) $(SRCDIR)/rerank.cc -o $(BINDIR)/rerank $(FINAL)
 
 clean:
 	rm -rf $(BINDIR)/*

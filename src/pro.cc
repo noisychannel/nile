@@ -5,12 +5,16 @@
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/map.hpp>
 
 #include <iostream>
 #include <fstream>
 #include <unordered_set>
 #include <climits>
+#include <csignal>
 #include "pair_sampler.h"
+
+#define NONLINEAR
 
 using namespace std;
 using namespace cnn;
@@ -44,6 +48,16 @@ unordered_set<string> get_feature_names(string filename) {
   return get_feature_names(filename, UINT_MAX);
 }
 
+bool ctrlc_pressed = false;
+void ctrlc_handler(int signal) {
+  if (ctrlc_pressed) {
+    exit(1);
+  }
+  else {
+    ctrlc_pressed = true;
+  }
+}
+
 int main(int argc, char** argv) {
   if (argc < 2) {
     cerr << "Usage: " << argv[0] << " kbest.txt" << endl;
@@ -58,6 +72,7 @@ int main(int argc, char** argv) {
     cerr << "0 ||| <s> ovatko ne syyt tai ? </s> ||| MaxLexEgivenF=1.26902 Glue=2 LanguageModel=-14.2355 SampleCountF=9.91427 ||| -1.32408 ||| 21.3" << endl;
     exit(1);
   }
+  signal (SIGINT, ctrlc_handler);
   const string kbest_filename = argv[1];
 
   cerr << "Reading feature names from k-best list...\n";
@@ -81,11 +96,10 @@ int main(int argc, char** argv) {
   SimpleSGDTrainer sgd(&m);
 
   double margin = 1.0;
-  double learning_rate = 1.0e-2;
+  double learning_rate = 1.0e-1;
   vector<float> ref_features(num_dimensions);
   vector<float> hyp_features(num_dimensions);
 
-  #define NONLINEAR
   #ifdef NONLINEAR
   unsigned hidden_size = 10;
   Parameters& p_w1 = *m.add_parameters({hidden_size, num_dimensions});
@@ -150,6 +164,12 @@ int main(int argc, char** argv) {
       loss += as_scalar(hg.forward());
       hg.backward();
       sgd.update(learning_rate);
+      if (ctrlc_pressed) {
+        break;
+      }
+    }
+    if (ctrlc_pressed) {
+      break;
     }
     cerr << "Iteration " << iteration << " loss: " << loss << endl;
     if (sampler != NULL) {
@@ -157,6 +177,13 @@ int main(int argc, char** argv) {
     }
     sampler = NULL;
   }
+
+  boost::archive::text_oarchive oa(cout);
+  #ifdef NONLINEAR
+  oa << p_w1 << p_w2 << p_b << feat2id;
+  #else
+  oa << p_w << feat2id;
+  #endif
 
   /*cerr << "Final weight vector:" << endl;
   for (unsigned i = 0; i < num_dimensions; ++i) {
