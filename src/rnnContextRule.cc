@@ -28,10 +28,17 @@ cnn::Dict targetD;
 template <class Builder>
 struct RNNContextRule {
   // The embeddings for the words
-  LookupParameters* p_w;
+  LookupParameters* p_w_source;
+  LookupParameters* p_w_target;
   // The model parameters
-  Parameters* p_R;
-  Parameters* p_bias;
+  Parameters* p_R_cl;
+  Parameters* p_bias_cl;
+  Parameters* p_R_cr;
+  Parameters* p_bias_cr;
+  Parameters* p_R_rl;
+  Parameters* p_bias_rl;
+  Parameters* p_R_rr;
+  Parameters* p_bias_rr;
   Builder builder_context_left;
   Builder builder_context_right;
   Builder builder_rule_source;
@@ -42,6 +49,14 @@ struct RNNContextRule {
     builder_rule_source(LAYERS, EMBEDDING_DIM, HIDDEN_DIM, &model),
     builder_rule_target(LAYERS, EMBEDDING_DIM, HIDDEN_DIM, &model)
   {
+    Parameters* p_R_cl;
+    Parameters* p_bias_cl;
+    Parameters* p_R_cr;
+    Parameters* p_bias_cr;
+    Parameters* p_R_rl;
+    Parameters* p_bias_rl;
+    Parameters* p_R_rr;
+    Parameters* p_bias_rr;
     p_w = model.add_lookup_parameters(VOCAB_SIZE, {EMBEDDING_DIM});
     p_R = model.add_parameters({VOCAB_SIZE, HIDDEN_DIM});
     p_bias = model.add_parameters({VOCAB_SIZE});
