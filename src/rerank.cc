@@ -14,7 +14,7 @@
 #include <csignal>
 #include "pair_sampler.h"
 
-//#define NONLINEAR
+#define NONLINEAR
 
 using namespace std;
 using namespace cnn;
@@ -31,7 +31,7 @@ void ctrlc_handler(int signal) {
 
 int main(int argc, char** argv) {
   if (argc < 3) {
-    cerr << "Usage: " << argv[0] << "model kbest.txt" << endl;
+    cerr << "Usage: " << argv[0] << " model kbest.txt" << endl;
     cerr << endl;
     cerr << "Where kbest.txt contains lines of them form" << endl;
     cerr << "sentence_id ||| hypothesis ||| features ||| ... " << endl;

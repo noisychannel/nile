@@ -15,6 +15,7 @@
 #include "pair_sampler.h"
 
 #define NONLINEAR
+//#define FAST
 
 using namespace std;
 using namespace cnn;
@@ -58,6 +59,22 @@ void ctrlc_handler(int signal) {
   }
 }
 
+VariableIndex linear_score(Hypergraph& hg, vector<float>* input, VariableIndex& i_w) {
+  unsigned num_dimensions = input->size();
+  VariableIndex i_h = hg.add_input({num_dimensions}, input); // Hypothesis feature vector
+  VariableIndex i_s = hg.add_function<MatrixMultiply>({i_w, i_h}); // Hypothesis score
+  return i_s;
+}
+
+VariableIndex nonlinear_score(Hypergraph& hg, vector<float>* input, VariableIndex& i_w1, VariableIndex& i_w2, VariableIndex& i_b) {
+  unsigned num_dimensions = input->size(); 
+  VariableIndex i_h = hg.add_input({num_dimensions}, input); // Hypothesis feature vector
+  VariableIndex i_g = hg.add_function<Multilinear>({i_b, i_w1, i_h});
+  VariableIndex i_t = hg.add_function<Tanh>({i_g});
+  VariableIndex i_s = hg.add_function<MatrixMultiply>({i_w2, i_t});
+  return i_s;
+}
+
 int main(int argc, char** argv) {
   if (argc < 2) {
     cerr << "Usage: " << argv[0] << " kbest.txt" << endl;
@@ -76,7 +93,7 @@ int main(int argc, char** argv) {
   const string kbest_filename = argv[1];
 
   cerr << "Reading feature names from k-best list...\n";
-  unordered_set<string> feature_names = get_feature_names(kbest_filename, 10000);
+  unordered_set<string> feature_names = get_feature_names(kbest_filename, 1000);
   unsigned num_dimensions = feature_names.size();
   cerr << "Found " << num_dimensions << " features.\n";
 
@@ -90,6 +107,13 @@ int main(int argc, char** argv) {
     feat_map_index++;
   }
 
+  cerr << "Reading k-best list...\n";
+  #ifdef FAST
+  FastPairSampler sampler(kbest_filename, feat2id, 100);
+  #else
+  PairSampler* sampler = NULL;
+  #endif
+
   cerr << "Building model...\n"; 
   cnn::Initialize(argc, argv);
   Model m;
@@ -99,68 +123,68 @@ int main(int argc, char** argv) {
   double learning_rate = 1.0e-1;
   vector<float> ref_features(num_dimensions);
   vector<float> hyp_features(num_dimensions);
+  Hypergraph hg;
 
   #ifdef NONLINEAR
-  unsigned hidden_size = 10;
+  unsigned hidden_size = 50;
   Parameters& p_w1 = *m.add_parameters({hidden_size, num_dimensions});
   Parameters& p_w2 = *m.add_parameters({1, hidden_size});
   Parameters& p_b = *m.add_parameters({hidden_size});
 
-  Hypergraph hg;
   VariableIndex i_w1 = hg.add_parameter(&p_w1);
   VariableIndex i_w2 = hg.add_parameter(&p_w2);
   VariableIndex i_b = hg.add_parameter(&p_b);
-  VariableIndex i_r = hg.add_input({num_dimensions}, &ref_features); // Reference feature vector
-  VariableIndex i_h = hg.add_input({num_dimensions}, &hyp_features); // Hypothesis feature vector
-  VariableIndex i_rs1 = hg.add_function<Multilinear>({i_b, i_w1, i_r}); // Reference score
-  VariableIndex i_hs1 = hg.add_function<Multilinear>({i_b, i_w1, i_h}); // Hypothesis score
-  VariableIndex i_rs2 = hg.add_function<Tanh>({i_rs1});
-  VariableIndex i_hs2 = hg.add_function<Tanh>({i_hs1});
-  VariableIndex i_rs3 = hg.add_function<Concatenate>({i_rs2});
-  VariableIndex i_hs3 = hg.add_function<Concatenate>({i_hs2});
-  VariableIndex i_rs4 = hg.add_function<MatrixMultiply>({i_w2, i_rs3});
-  VariableIndex i_hs4 = hg.add_function<MatrixMultiply>({i_w2, i_hs3});
-  VariableIndex i_g = hg.add_function<ConstantMinusX>({i_rs4}, margin); // margin - reference_score
-  VariableIndex i_l = hg.add_function<Sum>({i_g, i_hs4}); // margin - reference_score + hypothesis_score
-  VariableIndex i_rl = hg.add_function<Rectify>({i_l}); // max(0, margin - ref_score + hyp_score)
-
+  VariableIndex i_rs = nonlinear_score(hg, &ref_features, i_w1, i_w2, i_b); // Reference score
+  VariableIndex i_hs = nonlinear_score(hg, &hyp_features, i_w1, i_w2, i_b); // Hypothesis score
   #else
   Parameters& p_w = *m.add_parameters({1, num_dimensions});
-
-  Hypergraph hg;
   VariableIndex i_w = hg.add_parameter(&p_w); // The weight vector 
-  VariableIndex i_r = hg.add_input({num_dimensions}, &ref_features); // Reference feature vector
-  VariableIndex i_h = hg.add_input({num_dimensions}, &hyp_features); // Hypothesis feature vector
-  VariableIndex i_rs = hg.add_function<MatrixMultiply>({i_w, i_r}); // Reference score
-  VariableIndex i_hs = hg.add_function<MatrixMultiply>({i_w, i_h}); // Hypothesis score
+  VariableIndex i_rs = linear_score(hg, &ref_features, i_w); // Reference score
+  VariableIndex i_hs = linear_score(hg, &hyp_features, i_w); // Hypothesis score
+  #endif
+
   VariableIndex i_g = hg.add_function<ConstantMinusX>({i_rs}, margin); // margin - reference_score
   VariableIndex i_l = hg.add_function<Sum>({i_g, i_hs}); // margin - reference_score + hypothesis_score
   VariableIndex i_rl = hg.add_function<Rectify>({i_l}); // max(0, margin - ref_score + hyp_score)
-  #endif
 
   cerr << "Training model...\n";
   for (unsigned iteration = 0; iteration < 100; iteration++) {
+    #ifdef FAST
+    sampler.reset();
+    FastHypothesisPair hyp_pair; 
+    #else
+    sampler = new PairSampler(kbest_filename, 100);
     HypothesisPair hyp_pair;
-    PairSampler* sampler = new PairSampler(kbest_filename, 100);
+    #endif
 
     double loss = 0.0;
+    #ifdef FAST
+    while (sampler.next(hyp_pair)) {
+    #else
     while (sampler->next(hyp_pair)) {
+    #endif
+      cerr << hyp_pair.first->sentence_id << "\r";
       for (unsigned i = 0; i < num_dimensions; ++i) {
         ref_features[i] = 0.0;
         hyp_features[i] = 0.0;
       }
+      #ifdef FAST
+      for (auto it = hyp_pair.first->features.begin(); it != hyp_pair.first->features.end(); ++it) {
+        ref_features[it->first] = it->second;
+      }
+      for (auto it = hyp_pair.second->features.begin(); it != hyp_pair.second->features.end(); ++it) {
+        hyp_features[it->first] = it->second;
+      }
+      #else
       for (auto it = hyp_pair.first->features.begin(); it != hyp_pair.first->features.end(); ++it) {
         unsigned id = feat2id[it->first];
-        if (id < num_dimensions) { 
-          ref_features[id] = it->second;
-        }
+        ref_features[id] = it->second;
       }
       for (auto it = hyp_pair.second->features.begin(); it != hyp_pair.second->features.end(); ++it) {
         unsigned id = feat2id[it->first];
-        if (id < num_dimensions) {
-          hyp_features[id] = it->second;
-        }
+        hyp_features[id] = it->second;
       }
+      #endif
       loss += as_scalar(hg.forward());
       hg.backward();
       sgd.update(learning_rate);
@@ -168,14 +192,17 @@ int main(int argc, char** argv) {
         break;
       }
     }
+    #ifdef FAST
+    #else
+    if (sampler != NULL) {
+      delete sampler;
+      sampler = NULL;
+    }
+    #endif
     if (ctrlc_pressed) {
       break;
     }
     cerr << "Iteration " << iteration << " loss: " << loss << endl;
-    if (sampler != NULL) {
-      delete sampler;
-    }
-    sampler = NULL;
   }
 
   boost::archive::text_oarchive oa(cout);
