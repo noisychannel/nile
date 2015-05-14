@@ -11,6 +11,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <regex>
 
 using namespace std;
 using namespace cnn;
@@ -157,6 +158,56 @@ struct RNNContextRule {
 };
 
 
+vector<Context> getContexts(string t, string s) {
+  vector<Context> contextSeq;
+  vector<string> sParts = tokenize(s, " ");
+  vector<string> tParts = tokenize(t, " ");
+  sParts = strip(sParts);
+  tParts = strip(tParts);
+  // Unfortunate use of regex
+  std::smatch sm;
+  std::regex r("\|(\d+)-(\d+)\|");
+  vector<string> currentTargetPhrase;
+  for( std::vector<string>::const_iterator i = tParts.begin(); i != tParts.end(); ++i) {
+    if (std::regex_match(*i, sm, e)) {
+      // Match found : this is alignment information
+      assert(sm.size == 2);
+      srcFrom = sm[0];
+      srcTo = sm[1];
+      // Get the source phrase
+      unsigned srcId = 0;
+      vector<string> leftContext;
+      vector<string> rightContext;
+      vector<string> sourcePhrase;
+      for( std::vector<string>::const_iterator i = sParts.begin(); i != sParts.end(); ++i) {
+        if (srcId < srcFrom) {
+          //Generating left context
+          leftContext.push_back(*i);
+        }
+        else if (srcID >= srcFrom && srcID <= srcTo) {
+          // Generating source phrase
+          sourcePhrase.push_back(*i);
+        }
+        else {
+          // Generating right context
+          rightContext.push_back(*i);
+        }
+        ++srcId;
+      }
+      contextSeq.push_back({leftContext, rightContext, sourcePhrase, currentTargetPhrase});
+      // Reset target token collector
+      vector<string> currentTargetPhrase;
+    }
+    else {
+      // Target tokens
+      // Accumulate these till we see alignment info
+      currentTargetPhrase.push_back(*i);
+    }
+  }
+  return contextSeq;
+}
+
+
 int main(int argc, char** argv) {
   cnn::Initialize(argc, argv);
   // Read the source and the n-best file and create a sequence of contexts
@@ -189,14 +240,18 @@ int main(int argc, char** argv) {
           currentSrc = ReadLine(currentSrc, &sourceD);
           currentSrcID = hyp.sentence_id;
         }
+        // targetHyp looks something like this
+        // for |0-0| someone |1-1| to call you |2-3| or something |4-5| . |6-6|
+        vector<Context> contexts = getContexts(targetHyp, currentSrc);
       }
 
       // ReadSentence, reads the sentence and creates a dictionary
       training.push_back(ReadSentence(line, &d));
     }
-    d.Freeze();
-    VOCAB_SIZE = d.size();
-    // Get word embeddings for the items in the dictionary
+    sourceD.Freeze();
+    targetD.Freeze();
+    VOCAB_SIZE_SOURCE = sourceD.size();
+    VOCAB_SIZE_TARGET = targetD.size();
   }
 
   Model model;
