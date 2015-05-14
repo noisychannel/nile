@@ -175,21 +175,21 @@ int main(int argc, char** argv) {
   string currentSrcID;
   string currentSrc;
     {
-    ifstream sourceIn(argv[1]);
-    ifstream nBestIn(argv[2]);
-    assert(sourceIn);
-    assert(nBestIn);
-    while (getline(nBestIn, targetHyp)) {
-      //++tlc;
-      KbestHypothesis hyp = KbestHypothesis::parse(targetHyp);
-      if (hyp.sentence_id != currentSrcID) {
-        // We have a new n-best sequence
-        // First get the new source sentence
-        getline((sourceIn, currentSrc));
-        currentSrc = ReadLine(currentSrc, &sourceD);
-        currentSrcID = hyp.sentence_id;
+      ifstream sourceIn(argv[1]);
+      ifstream nBestIn(argv[2]);
+      assert(sourceIn);
+      assert(nBestIn);
+      while (getline(nBestIn, targetHyp)) {
+        //++tlc;
+        KbestHypothesis hyp = KbestHypothesis::parse(targetHyp);
+        if (hyp.sentence_id != currentSrcID) {
+          // We have a new n-best sequence
+          // First get the new source sentence
+          getline((sourceIn, currentSrc));
+          currentSrc = ReadLine(currentSrc, &sourceD);
+          currentSrcID = hyp.sentence_id;
+        }
       }
-    }
 
       // ReadSentence, reads the sentence and creates a dictionary
       training.push_back(ReadSentence(line, &d));

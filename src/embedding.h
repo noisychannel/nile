@@ -28,7 +28,7 @@ struct Embedding {
   long size;
 };
 
-struct Embedding load(const char* file_name) {
+std::map<string, vector<float>> loadEmbeddings(const char* file_name) {
 //int main(int argc, char **argv) {
   FILE *f;
   //char file_name[max_size];
@@ -63,13 +63,23 @@ struct Embedding load(const char* file_name) {
     len = sqrt(len);
     for (a = 0; a < size; a++) M[a + b * size] /= len;
   }
-  //output the vectors of the binary format in text
-  //printf("%lld %lld #File: %s\n",words,size,file_name);
-  //for (a = 0; a < words; a++){
-    //printf("%s ",&vocab[a * max_w]);
-    //for (b = 0; b< size; b++){ printf("%f ",M[a*size + b]); }
-    //printf("\b\b\n");
-  //}
-  Embedding e = {vocab, M, words, size};
-  return e;
+
+  // Changes made by Gaurav Kumar (gkumar@cs.jhu.edu)
+  // Returns a dictionary of word embeddings
+  std::map<string, vector<float>> embedDict;
+  for (int i = 0; i < words; i++){
+    std::string word = vocab[i * max_w];
+    std::vector<float> wordEmbedding;
+
+    for (int b = 0; b< size; b++) {
+      wordEmbedding.push_back(M[i * size + b]);
+    }
+    //cerr << word << endl;
+    for( std::vector<float>::const_iterator i = wordEmbedding.begin(); i != wordEmbedding.end(); ++i) {
+      cerr << *i << " ";
+      embedDict[word] = *i;
+    }
+  }
+
+  return embedDict;
 }
