@@ -7,19 +7,21 @@
 #include "cnn/lstm.h"
 #include "cnn/dict.h"
 #include "embedding.h"
+#include "utils.h"
 #include "kbest_hypothesis.h"
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <regex>
+#include <string>
 
 using namespace std;
 using namespace cnn;
 
 //Hyperparameters
-//TODO: Figure out embedding dim from the binary vector file
 unsigned LAYERS = 2;
+//TODO: Figure out embedding dim from the binary vector file
 unsigned EMBEDDING_DIM = 50;
 unsigned HIDDEN_DIM = EMBEDDING_DIM;
 unsigned VOCAB_SIZE_SOURCE = 0;
@@ -88,14 +90,14 @@ struct RNNContextRule {
 
   // This is a general recurrence operation for an RNN over a sequence
   // Reads in a sequence, creates and returns hidden states.
-  std::vector<VariableIndex> Recurrence(const std::vector<int>& sequence, Hypergraph& hg, Params p) {
+  std::vector<VariableIndex> Recurrence(const std::vector<int>& sequence, Hypergraph& hg, Params p, Builder builder) {
     const unsigned sequenceLen = sequence.size() - 1;
     std::vector<VariableIndex> hiddenStates;
     VariableIndex i_R = hg.add_parameter(p.p_R);
     VariableIndex i_bias = hg.add_parameter(p.p_bias);
     for (unsigned t = 0; t < sequenceLen; ++t) {
       // Get the embedding for the current input token
-      VariableIndex i_x_t = hg.add_lookup(p.p_w, sent[t]);
+      VariableIndex i_x_t = hg.add_lookup(p.p_w, sequence[t]);
       // y_t = RNN(x_t)
       VariableIndex i_y_t = builder.add_input(i_x_t, &hg);
       // r_T = bias + R * y_t
@@ -126,15 +128,15 @@ struct RNNContextRule {
     builder_rule_target.start_new_sequence(&hg);
     // Create the symbolic graph for the unrolled recurrent network
     std::vector<VariableIndex> hiddens_cl = Recurrence(c.leftContext, hg,
-                                {p_w_source, p_R_cl, p_bias_cl});
+                                {p_w_source, p_R_cl, p_bias_cl}, builder_context_left);
     std::vector<VariableIndex> hiddens_cr = Recurrence(c.rightContext, hg,
-                                {p_w_source, p_R_cr, p_bias_cr});
+                                {p_w_source, p_R_cr, p_bias_cr}, builder_context_right);
     std::vector<VariableIndex> hiddens_rs = Recurrence(c.sourceRule, hg,
-                                {p_w_source, p_R_rs, p_bias_rs});
+                                {p_w_source, p_R_rs, p_bias_rs}, builder_rule_source);
     std::vector<VariableIndex> hiddens_rt = Recurrence(c.targetRule, hg,
-                                {p_w_target, p_R_rt, p_bias_rt});
+                                {p_w_target, p_R_rt, p_bias_rt}, builder_rule_target);
     VariableIndex conv = hg.add_function<Sum>({hiddens_cl.back(), hiddens_cr.back(),
-                              hiddens_rs.back(), hiddens_rt.back()};
+                              hiddens_rs.back(), hiddens_rt.back()});
     return conv;
   }
 
@@ -160,34 +162,47 @@ struct RNNContextRule {
   }
 };
 
+std::vector<int> ReadPhrase(const std::vector<std::string> line, Dict* sd) {
+  std::string word;
+  std::vector<int> res;
+  for( std::vector<std::string>::const_iterator i = line.begin(); i != line.end(); ++i) {
+    word = *i;
+    if (word.empty()) break;
+    res.push_back(sd->Convert(word));
+  }
+  return res;
+}
 
-std::vector<Context> getContexts(std::string t, std::string s) {
+std::vector<Context> getContexts(std::string t, vector<int> s) {
   std::vector<Context> contextSeq;
-  std::vector<std::string> sParts = tokenize(s, " ");
+  //std::vector<std::string> sParts = tokenize(s, " ");
+  std::vector<int> sParts = s;
   std::vector<std::string> tParts = tokenize(t, " ");
-  sParts = strip(sParts);
+  //sParts = strip(sParts);
   tParts = strip(tParts);
   // Unfortunate use of regex
   std::smatch sm;
-  std::regex r("\|(\d+)-(\d+)\|");
+  std::regex r("\\|(\\d+)-(\\d+)\\|");
   std::vector<std::string> currentTargetPhrase;
   for( std::vector<std::string>::const_iterator i = tParts.begin(); i != tParts.end(); ++i) {
     if (std::regex_match(*i, sm, r)) {
       // Match found : this is alignment information
-      assert(sm.size == 2);
-      srcFrom = sm[0];
-      srcTo = sm[1];
+      assert(sm.size() == 2);
+      std::string tmpFrom = sm[0];
+      std::string tmpTo = sm[1];
+      unsigned srcFrom = atoi(tmpFrom.c_str());
+      unsigned srcTo = atoi(tmpTo.c_str());
       // Get the source phrase
       unsigned srcId = 0;
-      std::vector<std::string> leftContext;
-      std::vector<std::string> rightContext;
-      std::vector<std::string> sourcePhrase;
-      for( std::vector<std::string>::const_iterator i = sParts.begin(); i != sParts.end(); ++i) {
+      std::vector<int> leftContext;
+      std::vector<int> rightContext;
+      std::vector<int> sourcePhrase;
+      for( std::vector<int>::const_iterator i = sParts.begin(); i != sParts.end(); ++i) {
         if (srcId < srcFrom) {
           //Generating left context
           leftContext.push_back(*i);
         }
-        else if (srcID >= srcFrom && srcID <= srcTo) {
+        else if (srcId >= srcFrom && srcId <= srcTo) {
           // Generating source phrase
           sourcePhrase.push_back(*i);
         }
@@ -197,7 +212,10 @@ std::vector<Context> getContexts(std::string t, std::string s) {
         }
         ++srcId;
       }
-      contextSeq.push_back({leftContext, rightContext, sourcePhrase, currentTargetPhrase});
+
+      vector<int> tmpTargetPhrase = ReadPhrase(currentTargetPhrase, &targetD);
+      Context curContext = {leftContext, rightContext, sourcePhrase, tmpTargetPhrase};
+      contextSeq.push_back(curContext);
       // Reset target token collector
       std::vector<std::string> currentTargetPhrase;
     }
@@ -214,8 +232,6 @@ std::vector<Context> getContexts(std::string t, std::string s) {
 int main(int argc, char** argv) {
   cnn::Initialize(argc, argv);
   // Read the source and the n-best file and create a sequence of contexts
-  //TODO: Need phrase pairs for embedding
-  //Read vectors of source, target phrases
   std::cerr << "Reading source sentences from " << argv[1] << "...\n";
   std::cerr << "Read n-best target hyps from " << argv[2] << "...\n";
   // Counts the number of lines
@@ -227,43 +243,35 @@ int main(int argc, char** argv) {
   std::string sourceLine;
   std::string targetHyp;
   std::string currentSrcID;
-  std::string currentSrc;
-    {
-      ifstream sourceIn(argv[1]);
-      ifstream nBestIn(argv[2]);
-      assert(sourceIn);
-      assert(nBestIn);
-      while (getline(nBestIn, targetHyp)) {
-        //++tlc;
-        KbestHypothesis hyp = KbestHypothesis::parse(targetHyp);
-        if (hyp.sentence_id != currentSrcID) {
-          // We have a new n-best sequence
-          // First get the new source sentence
-          getline((sourceIn, currentSrc));
-          currentSrc = cnn::ReadLine(currentSrc, &sourceD);
-          currentSrcID = hyp.sentence_id;
-        }
-        // targetHyp looks something like this
-        // for |0-0| someone |1-1| to call you |2-3| or something |4-5| . |6-6|
-        std::vector<Context> contexts = getContexts(targetHyp, currentSrc);
+  std::string rawSrc;
+  vector<int> currentSrc;
+  {
+    ifstream sourceIn(argv[1]);
+    ifstream nBestIn(argv[2]);
+    assert(sourceIn);
+    assert(nBestIn);
+    while (getline(nBestIn, targetHyp)) {
+      //++tlc;
+      KbestHypothesis hyp = KbestHypothesis::parse(targetHyp);
+      if (hyp.sentence_id != currentSrcID) {
+        // We have a new n-best sequence
+        // First get the new source sentence
+        getline(sourceIn, rawSrc);
+        currentSrc = ReadSentence(rawSrc, &sourceD);
+        currentSrcID = hyp.sentence_id;
       }
-
-      // ReadSentence, reads the sentence and creates a dictionary
-      training.push_back(ReadSentence(line, &d));
+      // targetHyp looks something like this
+      // for |0-0| someone |1-1| to call you |2-3| or something |4-5| . |6-6|
+      std::vector<Context> contexts = getContexts(targetHyp, currentSrc);
     }
-    sourceD.Freeze();
-    targetD.Freeze();
-    VOCAB_SIZE_SOURCE = sourceD.size();
-    VOCAB_SIZE_TARGET = targetD.size();
   }
+  sourceD.Freeze();
+  targetD.Freeze();
+  VOCAB_SIZE_SOURCE = sourceD.size();
+  VOCAB_SIZE_TARGET = targetD.size();
 
   Model model;
   Trainer* sgd = new SimpleSGDTrainer(&model);
   RNNContextRule<RNNBuilder> rnncr(model);
-
-  //unsigned report_every_i = 50;
-  //unsigned dev_every_i_reports = 500;
-  //unsigned si = trainining.size();
-  //std::vector<unsigned> order(training.size());
 
 }
