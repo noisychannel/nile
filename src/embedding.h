@@ -68,7 +68,7 @@ std::map<std::string, std::vector<float>> loadEmbeddings(const char* file_name) 
   // Returns a dictionary of word embeddings
   std::map<std::string, std::vector<float>> embedDict;
   for (int i = 0; i < words; i++){
-    std::string word = vocab[i * max_w];
+    std::string word = std::string(&vocab[i * max_w]);
     std::vector<float> wordEmbedding;
 
     for (int b = 0; b< size; b++) {
@@ -77,7 +77,7 @@ std::map<std::string, std::vector<float>> loadEmbeddings(const char* file_name) 
     //cerr << word << endl;
     for( std::vector<float>::const_iterator i = wordEmbedding.begin(); i != wordEmbedding.end(); ++i) {
       std::cerr << *i << " ";
-      embedDict[word] = *i;
+      embedDict[word].push_back(*i);;
     }
   }
 
