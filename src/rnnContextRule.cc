@@ -1,3 +1,4 @@
+#pragma warning
 #include "cnn/edges.h"
 #include "cnn/cnn.h"
 #include "cnn/training.h"
@@ -29,10 +30,10 @@ cnn::Dict sourceD;
 cnn::Dict targetD;
 
 struct Context {
-  const vector<int>& leftContext,
-  const vector<int>& rightContext,
-  const vector<int>& sourceRule,
-  const vector<int>& targetRule
+  const std::vector<int>& leftContext;
+  const std::vector<int>& rightContext;
+  const std::vector<int>& sourceRule;
+  const std::vector<int>& targetRule;
 };
 
 struct Params {
@@ -87,14 +88,14 @@ struct RNNContextRule {
 
   // This is a general recurrence operation for an RNN over a sequence
   // Reads in a sequence, creates and returns hidden states.
-  vector<VariableIndex> Recurrence(const vector<int>& sequence, Hypergraph& hg, Params p) {
+  std::vector<VariableIndex> Recurrence(const std::vector<int>& sequence, Hypergraph& hg, Params p) {
     const unsigned sequenceLen = sequence.size() - 1;
-    vector<VariableIndex> hiddenStates;
-    VariableIndex i_R = hg.add_parameter(p_R);
-    VariableIndex i_bias = hg.add_parameter(p_bias);
+    std::vector<VariableIndex> hiddenStates;
+    VariableIndex i_R = hg.add_parameter(p.p_R);
+    VariableIndex i_bias = hg.add_parameter(p.p_bias);
     for (unsigned t = 0; t < sequenceLen; ++t) {
       // Get the embedding for the current input token
-      VariableIndex i_x_t = hg.add_lookup(p_w, sent[t]);
+      VariableIndex i_x_t = hg.add_lookup(p.p_w, sent[t]);
       // y_t = RNN(x_t)
       VariableIndex i_y_t = builder.add_input(i_x_t, &hg);
       // r_T = bias + R * y_t
@@ -124,13 +125,13 @@ struct RNNContextRule {
     builder_rule_source.start_new_sequence(&hg);
     builder_rule_target.start_new_sequence(&hg);
     // Create the symbolic graph for the unrolled recurrent network
-    vector<VariableIndex> hiddens_cl = Recurrence(c.leftContext, hg,
+    std::vector<VariableIndex> hiddens_cl = Recurrence(c.leftContext, hg,
                                 {p_w_source, p_R_cl, p_bias_cl});
-    vector<VariableIndex> hiddens_cr = Recurrence(c.rightContext, hg,
+    std::vector<VariableIndex> hiddens_cr = Recurrence(c.rightContext, hg,
                                 {p_w_source, p_R_cr, p_bias_cr});
-    vector<VariableIndex> hiddens_rs = Recurrence(c.sourceRule, hg,
+    std::vector<VariableIndex> hiddens_rs = Recurrence(c.sourceRule, hg,
                                 {p_w_source, p_R_rs, p_bias_rs});
-    vector<VariableIndex> hiddens_rt = Recurrence(c.targetRule, hg,
+    std::vector<VariableIndex> hiddens_rt = Recurrence(c.targetRule, hg,
                                 {p_w_target, p_R_rt, p_bias_rt});
     VariableIndex conv = hg.add_function<Sum>({hiddens_cl.back(), hiddens_cr.back(),
                               hiddens_rs.back(), hiddens_rt.back()};
@@ -144,10 +145,12 @@ struct RNNContextRule {
   // The embeddings are currently simply summed together to get the feature
   // vector for the hypothesis. This may change in the future.
   // TODO (gaurav)
-  VariableIndex BuildRuleSequenceModel(vector<struct Context> cSeq, Hypergraph& hg) {
+  std::vector<struct Context> currentContext;
+  std::vector<VariableIndex> currentEmbedding;
+  VariableIndex BuildRuleSequenceModel(std::vector<struct Context> cSeq, Hypergraph& hg) {
     const unsigned cSeqLen = cSeq.size() - 1;
-    vector<VariableIndex> ruleEmbeddings;
-    for( std::vector<float>::const_iterator i = cSeq.begin(); i != cSeq.end(); ++i) {
+    std::vector<VariableIndex> ruleEmbeddings;
+    for( std::vector<struct Context>::const_iterator i = cSeq.begin(); i != cSeq.end(); ++i) {
       currentContext = *i;
       currentEmbedding = Recurrence(currentContext, hg);
       ruleEmbeddings.push_back(currentEmbedding);
@@ -158,28 +161,28 @@ struct RNNContextRule {
 };
 
 
-vector<Context> getContexts(string t, string s) {
-  vector<Context> contextSeq;
-  vector<string> sParts = tokenize(s, " ");
-  vector<string> tParts = tokenize(t, " ");
+std::vector<Context> getContexts(std::string t, std::string s) {
+  std::vector<Context> contextSeq;
+  std::vector<std::string> sParts = tokenize(s, " ");
+  std::vector<std::string> tParts = tokenize(t, " ");
   sParts = strip(sParts);
   tParts = strip(tParts);
   // Unfortunate use of regex
   std::smatch sm;
   std::regex r("\|(\d+)-(\d+)\|");
-  vector<string> currentTargetPhrase;
-  for( std::vector<string>::const_iterator i = tParts.begin(); i != tParts.end(); ++i) {
-    if (std::regex_match(*i, sm, e)) {
+  std::vector<std::string> currentTargetPhrase;
+  for( std::vector<std::string>::const_iterator i = tParts.begin(); i != tParts.end(); ++i) {
+    if (std::regex_match(*i, sm, r)) {
       // Match found : this is alignment information
       assert(sm.size == 2);
       srcFrom = sm[0];
       srcTo = sm[1];
       // Get the source phrase
       unsigned srcId = 0;
-      vector<string> leftContext;
-      vector<string> rightContext;
-      vector<string> sourcePhrase;
-      for( std::vector<string>::const_iterator i = sParts.begin(); i != sParts.end(); ++i) {
+      std::vector<std::string> leftContext;
+      std::vector<std::string> rightContext;
+      std::vector<std::string> sourcePhrase;
+      for( std::vector<std::string>::const_iterator i = sParts.begin(); i != sParts.end(); ++i) {
         if (srcId < srcFrom) {
           //Generating left context
           leftContext.push_back(*i);
@@ -196,7 +199,7 @@ vector<Context> getContexts(string t, string s) {
       }
       contextSeq.push_back({leftContext, rightContext, sourcePhrase, currentTargetPhrase});
       // Reset target token collector
-      vector<string> currentTargetPhrase;
+      std::vector<std::string> currentTargetPhrase;
     }
     else {
       // Target tokens
@@ -213,18 +216,18 @@ int main(int argc, char** argv) {
   // Read the source and the n-best file and create a sequence of contexts
   //TODO: Need phrase pairs for embedding
   //Read vectors of source, target phrases
-  cerr << "Reading source sentences from " << argv[1] << "...\n";
-  cerr << "Read n-best target hyps from " << argv[2] << "...\n";
+  std::cerr << "Reading source sentences from " << argv[1] << "...\n";
+  std::cerr << "Read n-best target hyps from " << argv[2] << "...\n";
   // Counts the number of lines
   //int tlc = 0;
   // Counts the number of tokens
   //int ttoks = 0;
   //vector< vector<int> > training, dev;
 
-  string sourceLine;
-  string targetHyp;
-  string currentSrcID;
-  string currentSrc;
+  std::string sourceLine;
+  std::string targetHyp;
+  std::string currentSrcID;
+  std::string currentSrc;
     {
       ifstream sourceIn(argv[1]);
       ifstream nBestIn(argv[2]);
@@ -237,12 +240,12 @@ int main(int argc, char** argv) {
           // We have a new n-best sequence
           // First get the new source sentence
           getline((sourceIn, currentSrc));
-          currentSrc = ReadLine(currentSrc, &sourceD);
+          currentSrc = cnn::ReadLine(currentSrc, &sourceD);
           currentSrcID = hyp.sentence_id;
         }
         // targetHyp looks something like this
         // for |0-0| someone |1-1| to call you |2-3| or something |4-5| . |6-6|
-        vector<Context> contexts = getContexts(targetHyp, currentSrc);
+        std::vector<Context> contexts = getContexts(targetHyp, currentSrc);
       }
 
       // ReadSentence, reads the sentence and creates a dictionary
@@ -258,9 +261,9 @@ int main(int argc, char** argv) {
   Trainer* sgd = new SimpleSGDTrainer(&model);
   RNNContextRule<RNNBuilder> rnncr(model);
 
-  unsigned report_every_i = 50;
-  unsigned dev_every_i_reports = 500;
-  unisgned si = trainining.size();
-  vector<unisgned> order(training.size());
+  //unsigned report_every_i = 50;
+  //unsigned dev_every_i_reports = 500;
+  //unsigned si = trainining.size();
+  //std::vector<unsigned> order(training.size());
 
 }

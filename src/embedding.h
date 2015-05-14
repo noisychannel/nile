@@ -28,7 +28,7 @@ struct Embedding {
   long size;
 };
 
-std::map<string, vector<float>> loadEmbeddings(const char* file_name) {
+std::map<std::string, std::vector<float>> loadEmbeddings(const char* file_name) {
 //int main(int argc, char **argv) {
   FILE *f;
   //char file_name[max_size];
@@ -66,7 +66,7 @@ std::map<string, vector<float>> loadEmbeddings(const char* file_name) {
 
   // Changes made by Gaurav Kumar (gkumar@cs.jhu.edu)
   // Returns a dictionary of word embeddings
-  std::map<string, vector<float>> embedDict;
+  std::map<std::string, std::vector<float>> embedDict;
   for (int i = 0; i < words; i++){
     std::string word = vocab[i * max_w];
     std::vector<float> wordEmbedding;
@@ -76,7 +76,7 @@ std::map<string, vector<float>> loadEmbeddings(const char* file_name) {
     }
     //cerr << word << endl;
     for( std::vector<float>::const_iterator i = wordEmbedding.begin(); i != wordEmbedding.end(); ++i) {
-      cerr << *i << " ";
+      std::cerr << *i << " ";
       embedDict[word] = *i;
     }
   }
