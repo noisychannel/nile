@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
   cerr << "Reading feature names from k-best list...\n";
   unordered_set<string> feature_names = get_feature_names(kbest_filename, 1000);
   unsigned num_dimensions = feature_names.size();
-  unsigned samples_per_sentence = 1;
+  unsigned samples_per_sentence = 10;
   cerr << "Found " << num_dimensions << " features.\n";
 
   cerr << "Building feature name-id maps...\n";
@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
   VariableIndex i_rl = hg.add_function<Rectify>({i_l}); // max(0, margin - ref_score + hyp_score)
 
   cerr << "Training model...\n";
-  for (unsigned iteration = 0; iteration < 1; iteration++) {
+  for (unsigned iteration = 0; iteration < 10; iteration++) {
     #ifdef FAST
     sampler.reset();
     FastHypothesisPair hyp_pair; 
@@ -174,25 +174,30 @@ int main(int argc, char** argv) {
       #ifdef FAST
       for (auto it = hyp_pair.first->features.begin(); it != hyp_pair.first->features.end(); ++it) {
         ref_features[it->first] = it->second;
-        cout << "r" << it->first << " " << it->second << endl;
+        //cout << "r" << it->first << " " << it->second << endl;
       }
       for (auto it = hyp_pair.second->features.begin(); it != hyp_pair.second->features.end(); ++it) {
         hyp_features[it->first] = it->second;
-        cout << "h" << it->first << " " << it->second << endl;
+        //cout << "h" << it->first << " " << it->second << endl;
       }
       #else
       for (auto it = hyp_pair.first->features.begin(); it != hyp_pair.first->features.end(); ++it) {
-        unsigned id = feat2id[it->first];
-        ref_features[id] = it->second;
-        cout << "r" << id << " " << it->second << endl;
+        if (feat2id.find(it->first) != feat2id.end()) {
+          unsigned id = feat2id[it->first];
+          ref_features[id] = it->second;
+          //cout << "r" << id << " " << it->second << endl;
+        }
       }
       for (auto it = hyp_pair.second->features.begin(); it != hyp_pair.second->features.end(); ++it) {
-        unsigned id = feat2id[it->first];
-        hyp_features[id] = it->second;
-        cout << "h" << id << " " << it->second << endl;
+        if (feat2id.find(it->first) != feat2id.end()) {
+          unsigned id = feat2id[it->first];
+          hyp_features[id] = it->second;
+          //cout << "h" << id << " " << it->second << endl;
+        }
       }
       #endif
       loss += as_scalar(hg.forward());
+      cout << as_scalar(hg.forward()) << endl;
       hg.backward();
       sgd.update(learning_rate);
       if (ctrlc_pressed) {
@@ -210,6 +215,7 @@ int main(int argc, char** argv) {
       break;
     }
     cerr << "Iteration " << iteration << " loss: " << loss << endl;
+    cout << "ITERATION " << iteration << " done." << endl;
   }
 
 /*  boost::archive::text_oarchive oa(cout);
@@ -218,11 +224,6 @@ int main(int argc, char** argv) {
   #else
   oa << p_w << feat2id;
   #endif */
-
-  /*cerr << "Final weight vector:" << endl;
-  for (unsigned i = 0; i < num_dimensions; ++i) {
-    cout << id2feat[i] << " " << TensorTools::AccessElement(p_w.values, {0, i}) << "\n";
-  }*/
 
   return 0;
 }
