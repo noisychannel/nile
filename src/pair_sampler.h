@@ -60,11 +60,12 @@ bool PairSampler::next(HypothesisPair& out) {
   for (unsigned attempts = 0; attempts < 100; attempts++) {
     unsigned i = rand() % current_sent_hypotheses.size();
     unsigned j = rand() % current_sent_hypotheses.size();
+    cout << current_sent_id << " " << i << " " << j << endl;
 
-    if (current_sent_hypotheses[i].metric_score - current_sent_hypotheses[j].metric_score == 0.0) {
+    /*if (current_sent_hypotheses[i].metric_score - current_sent_hypotheses[j].metric_score == 0.0) {
       failures++;
       continue;
-    }
+    }*/
 
     if (current_sent_hypotheses[i].metric_score > current_sent_hypotheses[j].metric_score) {
       out = make_pair(&current_sent_hypotheses[i], &current_sent_hypotheses[j]);
@@ -94,6 +95,7 @@ bool PairSampler::read_next_hyp_set() {
   if (next_hypothesis != NULL) {
     assert (next_hypothesis->sentence_id.length() > 0);
     current_sent_hypotheses.push_back(*next_hypothesis);
+    current_sent_id = next_hypothesis->sentence_id;
   }
 
   string line;
@@ -105,7 +107,6 @@ bool PairSampler::read_next_hyp_set() {
     if (hyp.sentence_id != current_sent_id) {
       next_hypothesis = new KbestHypothesis(hyp);
       cerr << current_sent_id << "\r";
-      current_sent_id = hyp.sentence_id;
       failures = 0;
       return true;
     }
@@ -190,11 +191,12 @@ bool FastPairSampler::next(FastHypothesisPair& out) {
   for (unsigned attempts = 0; attempts < 100; attempts++) {
     unsigned i = rand() % current_sent_hypotheses.size();
     unsigned j = rand() % current_sent_hypotheses.size();
-
-    if (current_sent_hypotheses[i].metric_score - current_sent_hypotheses[j].metric_score == 0.0) {
+    cout << *current << " " << i << " " << j << endl;
+ 
+    /*if (current_sent_hypotheses[i].metric_score - current_sent_hypotheses[j].metric_score == 0.0) {
       failures++;
       continue;
-    }
+    }*/
 
     if (current_sent_hypotheses[i].metric_score > current_sent_hypotheses[j].metric_score) {
       out = make_pair(&current_sent_hypotheses[i], &current_sent_hypotheses[j]);

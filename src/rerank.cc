@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
   vector<float> hyp_features(num_dimensions);
 
   #ifdef NONLINEAR
-  unsigned hidden_size = 10;
+  unsigned hidden_size = 50;
   Parameters& p_w1 = *m.add_parameters({hidden_size, num_dimensions});
   Parameters& p_w2 = *m.add_parameters({1, hidden_size});
   Parameters& p_b = *m.add_parameters({hidden_size});

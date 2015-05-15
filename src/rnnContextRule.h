@@ -230,9 +230,9 @@ std::vector<Context> getContexts(std::string t, vector<int> s) {
 }
 
 
-VariableIndex getRNNRuleContext(std::string rawSrc, std::string targetHyp,
+VariableIndex getRNNRuleContext(vector<int>& src, string& tgt,
   LookupParameters* p_w_source, LookupParameters* p_w_target,
-    Hypergraph hg, Model model) {
+    Hypergraph& hg, Model& model) {
 //int main(int argc, char** argv) {
   //1. Source sentence
   //2. Target Hyp
@@ -246,8 +246,7 @@ VariableIndex getRNNRuleContext(std::string rawSrc, std::string targetHyp,
   //int ttoks = 0;
   //vector< vector<int> > training, dev;
 
-  std::vector<int> currentSrc = ReadSentence(rawSrc, &sourceD);
-  std::vector<Context> contexts = getContexts(targetHyp, currentSrc);
+  std::vector<Context> contexts = getContexts(tgt, src);
   RNNContextRule<RNNBuilder> rnncr(model, p_w_source, p_w_target);
   return rnncr.BuildRuleSequenceModel(contexts, hg);
 
@@ -285,7 +284,7 @@ VariableIndex getRNNRuleContext(std::string rawSrc, std::string targetHyp,
   //Hypergraph hg;
 }
 
-int main(int argc, char** argv) {
+/*int main(int argc, char** argv) {
   std::string rawSrc;
   std::string targetHyp;
   //cnn::Dict sourceD;
@@ -295,4 +294,4 @@ int main(int argc, char** argv) {
   Hypergraph hg;
   Model model;
   getRNNRuleContext(rawSrc, targetHyp, p_w_source, p_w_target, hg, model);
-}
+}*/
