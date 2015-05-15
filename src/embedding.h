@@ -77,7 +77,7 @@ std::map<std::string, std::vector<float>> loadEmbeddings(const char* file_name) 
     }
     //cerr << word << endl;
     for( std::vector<float>::const_iterator i = wordEmbedding.begin(); i != wordEmbedding.end(); ++i) {
-      std::cerr << *i << " ";
+      //std::cerr << *i << " ";
       embedDict[word].push_back(*i);;
     }
   }
