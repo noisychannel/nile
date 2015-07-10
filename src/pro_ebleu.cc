@@ -1,11 +1,12 @@
 #include "cnn/nodes.h"
 #include "cnn/cnn.h"
 #include "cnn/training.h"
-#include "utils.h"
+#include "cnn/expr.h"
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/map.hpp>
+#include <boost/serialization/export.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -13,12 +14,16 @@
 #include <unordered_map>
 #include <climits>
 #include <csignal>
-#include "pair_sampler.h"
+
+#include "kbestlist.h"
+#include "utils.h"
+#include "reranker.h"
 
 #define NONLINEAR
 
 using namespace std;
 using namespace cnn;
+using namespace cnn::expr;
 
 bool ctrlc_pressed = false;
 void ctrlc_handler(int signal) {
@@ -70,7 +75,7 @@ VariableIndex linear_score(ComputationGraph& hg, vector<float>* input, VariableI
 }
 
 VariableIndex nonlinear_score(ComputationGraph& hg, vector<float>* input, VariableIndex& i_w1, VariableIndex& i_w2, VariableIndex& i_b) {
-  unsigned num_dimensions = input->size(); 
+  unsigned num_dimensions = input->size();
   VariableIndex i_h = hg.add_input({num_dimensions}, input); // Hypothesis feature vector
   VariableIndex i_g = hg.add_function<AffineTransform>({i_b, i_w1, i_h});
   VariableIndex i_t = hg.add_function<Tanh>({i_g});
@@ -78,73 +83,8 @@ VariableIndex nonlinear_score(ComputationGraph& hg, vector<float>* input, Variab
   return i_s;
 }
 
-class KbestList {
-public:
-  KbestList(string filename) {
-    input_file = new ifstream(filename);
-    if (input_file == NULL || !input_file->is_open()) {
-      cerr << "Unable to open kbest file: " << filename << endl;
-      exit(1);
-    }
-    current_sent_id = "";
-    next_hypothesis = NULL;
-  }
-  ~KbestList() {
-    if (input_file != NULL) {
-      if (input_file->is_open()) {
-        input_file->close();
-      }
-      delete input_file;
-    }
-    if (next_hypothesis != NULL) {
-      delete next_hypothesis;
-    }
-  }
-  bool NextSet(vector<KbestHypothesis>& out) {
-    out.clear();
-    if (input_file == NULL) {
-      return false;
-    }
-
-    if (next_hypothesis != NULL) {
-      assert (next_hypothesis->sentence_id.length() > 0);
-      out.push_back(*next_hypothesis);
-      current_sent_id = next_hypothesis->sentence_id;
-      delete next_hypothesis;
-      next_hypothesis = NULL;
-    }
-
-    string line;
-    while(getline(*input_file, line)) {
-      KbestHypothesis hyp = KbestHypothesis::parse(line);
-      if (current_sent_id == "") {
-        current_sent_id = hyp.sentence_id;
-      }
-      if (hyp.sentence_id != current_sent_id) {
-        next_hypothesis = new KbestHypothesis(hyp);
-        cerr << current_sent_id << "\r";
-        return true;
-      }
-      out.push_back(hyp);
-    }
-
-    assert (out.size() != 0);
-    if (input_file != NULL) {
-      input_file->close();
-      delete input_file;
-      input_file = NULL;
-    }
-    return true;
-  }
-private:
-  KbestHypothesis* next_hypothesis;
-  string current_sent_id;
-  ifstream* input_file;
-};
-
-int main(int argc, char** argv) {
-  if (argc < 2) {
-    cerr << "Usage: " << argv[0] << " kbest.txt [dev.txt]" << endl;
+void ShowUsageAndExit(string program_name) {
+    cerr << "Usage: " << program_name << " kbest.txt [dev.txt]" << endl;
     cerr << endl;
     cerr << "Where kbest.txt contains lines of them form" << endl;
     cerr << "sentence_id ||| hypothesis ||| features ||| ... ||| metric score" << endl;
@@ -155,10 +95,16 @@ int main(int argc, char** argv) {
     cerr << "Here's an example of a valid input line:" << endl;
     cerr << "0 ||| <s> ovatko ne syyt tai ? </s> ||| MaxLexEgivenF=1.26902 Glue=2 LanguageModel=-14.2355 SampleCountF=9.91427 ||| -1.32408 ||| 21.3" << endl;
     exit(1);
-  }
+}
+
+int main(int argc, char** argv) {
   signal (SIGINT, ctrlc_handler);
+  if (argc < 2) {
+    ShowUsageAndExit(argv[0]);
+  }
   const string kbest_filename = argv[1];
   const string dev_filename = (argc >= 3) ? argv[2] : "";
+
   cerr << "Running on " << Eigen::nbThreads() << " threads." << endl;
 
   cerr << "Reading feature names from k-best list...\n";
@@ -176,7 +122,7 @@ int main(int argc, char** argv) {
     feat_map_index++;
   }
 
-  cerr << "Building model...\n"; 
+  cerr << "Building model...\n";
   cnn::Initialize(argc, argv);
   Model m;
   //SimpleSGDTrainer sgd(&m, 0.0, 0.1);
@@ -210,9 +156,9 @@ int main(int argc, char** argv) {
       #ifdef NONLINEAR
         VariableIndex i_w1 = hg.add_parameters(&p_w1);
         VariableIndex i_w2 = hg.add_parameters(&p_w2);
-        VariableIndex i_b = hg.add_parameters(&p_b); 
+        VariableIndex i_b = hg.add_parameters(&p_b);
       #else
-        VariableIndex i_w = hg.add_parameters(&p_w); // The weight vector 
+        VariableIndex i_w = hg.add_parameters(&p_w); // The weight vector
       #endif
 
       assert (hypotheses.size() > 0);
