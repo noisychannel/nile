@@ -12,7 +12,7 @@ INCS=-I$(CNN_DIR) -I$(CNN_BUILD_DIR) -I$(EIGEN)
 LIBS=-L$(CNN_BUILD_DIR)/cnn/
 FINAL=-lcnn -lboost_regex -lboost_serialization
 CFLAGS=-std=c++11 -O3 -ffast-math -funroll-loops
-#CFLAGS=-O0 -g -DDEBUG
+#CFLAGS=-std=c++11 -O0 -g -DDEBUG
 BINDIR=bin
 OBJDIR=obj
 SRCDIR=src
@@ -23,6 +23,10 @@ all: $(BINDIR)/pro $(BINDIR)/rerank $(BINDIR)/pro_gaurav $(BINDIR)/pro_ebleu
 clean:
 	rm -rf $(BINDIR)/*
 	rm -rf $(OBJDIR)/*
+
+$(OBJDIR)/reranker.o: $(SRCDIR)/reranker.cc $(SRCDIR)/reranker.h $(SRCDIR)/kbest_hypothesis.h
+	mkdir -p $(OBJDIR)
+	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/reranker.cc -o $(OBJDIR)/reranker.o
 
 $(OBJDIR)/kbestlist.o: $(SRCDIR)/kbestlist.h $(SRCDIR)/kbestlist.cc
 	mkdir -p $(OBJDIR)
@@ -40,7 +44,7 @@ $(OBJDIR)/pro.o: $(SRCDIR)/pro.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypothesis.h
 	mkdir -p $(OBJDIR)
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/pro.cc -o $(OBJDIR)/pro.o
 
-$(OBJDIR)/pro_ebleu.o: $(SRCDIR)/pro_ebleu.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/kbestlist.h
+$(OBJDIR)/pro_ebleu.o: $(SRCDIR)/pro_ebleu.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/kbestlist.h $(SRCDIR)/reranker.h
 	mkdir -p $(OBJDIR)
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/pro_ebleu.cc -o $(OBJDIR)/pro_ebleu.o
 
@@ -56,9 +60,9 @@ $(BINDIR)/pro: $(OBJDIR)/pro.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/utils.o
 	mkdir -p $(BINDIR)
 	g++ $(LIBS) $(OBJDIR)/pro.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/utils.o -o $(BINDIR)/pro $(FINAL)
 
-$(BINDIR)/pro_ebleu: $(OBJDIR)/pro_ebleu.o $(OBJDIR)/kbestlist.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o
+$(BINDIR)/pro_ebleu: $(OBJDIR)/pro_ebleu.o $(OBJDIR)/kbestlist.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/reranker.o
 	mkdir -p $(BINDIR)
-	g++ $(LIBS) $(OBJDIR)/pro_ebleu.o $(OBJDIR)/kbestlist.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o -o $(BINDIR)/pro_ebleu $(FINAL)
+	g++ $(LIBS) $(OBJDIR)/pro_ebleu.o $(OBJDIR)/kbestlist.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/reranker.o -o $(BINDIR)/pro_ebleu $(FINAL)
 
 $(BINDIR)/pro_gaurav: $(OBJDIR)/pro_gaurav.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o 
 	mkdir -p $(BINDIR)
