@@ -1,4 +1,4 @@
-#include "cnn/edges.h"
+#include "cnn/nodes.h"
 #include "cnn/cnn.h"
 #include "cnn/training.h"
 #include "cnn/dict.h"
@@ -76,10 +76,10 @@ void ctrlc_handler(int signal) {
   }
 }
 
-VariableIndex nonlinear_score_gaurav(Model& m, Hypergraph& hg, vector<int>& source, string& target,
+VariableIndex nonlinear_score_gaurav(Model& m, ComputationGraph& hg, vector<int>& source, string& target,
     LookupParameters& w_source, LookupParameters& w_target, VariableIndex& i_w1, VariableIndex& i_w2, VariableIndex& i_b) {
   VariableIndex i_h = getRNNRuleContext(source, target, &w_source, &w_target, hg, m);
-  VariableIndex i_g = hg.add_function<Multilinear>({i_b, i_w1, i_h});
+  VariableIndex i_g = hg.add_function<AffineTransform>({i_b, i_w1, i_h});
   VariableIndex i_t = hg.add_function<Tanh>({i_g});
   VariableIndex i_s = hg.add_function<MatrixMultiply>({i_w2, i_t});
   return i_s;
@@ -191,10 +191,10 @@ int main(int argc, char** argv) {
         hyp_features[it->first] = it->second;
       }
 
-      Hypergraph hg;
-      VariableIndex i_w1 = hg.add_parameter(&p_w1);
-      VariableIndex i_w2 = hg.add_parameter(&p_w2);
-      VariableIndex i_b = hg.add_parameter(&p_b);
+      ComputationGraph hg;
+      VariableIndex i_w1 = hg.add_parameters(&p_w1);
+      VariableIndex i_w2 = hg.add_parameters(&p_w2);
+      VariableIndex i_b = hg.add_parameters(&p_b);
       VariableIndex i_rs = nonlinear_score_gaurav(m, hg, src, get<0>(hyp_pair)->sentence, p_s, p_t, i_w1, i_w2, i_b); // Reference score
       VariableIndex i_hs = nonlinear_score_gaurav(m, hg, src, get<1>(hyp_pair)->sentence, p_s, p_t, i_w1, i_w2, i_b); // Hypothesis score
 

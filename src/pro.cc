@@ -1,4 +1,4 @@
-#include "cnn/edges.h"
+#include "cnn/nodes.h"
 #include "cnn/cnn.h"
 #include "cnn/training.h"
 #include "utils.h"
@@ -7,9 +7,12 @@
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/map.hpp>
 
+#include <Eigen/Core>
+
 #include <iostream>
 #include <fstream>
 #include <unordered_set>
+#include <unordered_map>
 #include <climits>
 #include <csignal>
 #include "pair_sampler.h"
@@ -19,6 +22,16 @@
 
 using namespace std;
 using namespace cnn;
+
+bool ctrlc_pressed = false;
+void ctrlc_handler(int signal) {
+  if (ctrlc_pressed) {
+    exit(1);
+  }
+  else {
+    ctrlc_pressed = true;
+  }
+}
 
 // Takes the name of a kbest file name and returns the
 // number of unique feature names found therewithin
@@ -38,6 +51,9 @@ unordered_set<string> get_feature_names(string filename, unsigned max_size) {
         input_stream.close();
         return feature_names;
       }
+      if (ctrlc_pressed) {
+        return feature_names;
+      }
     }
     cerr << hyp.sentence_id << "\r";
   }
@@ -49,34 +65,23 @@ unordered_set<string> get_feature_names(string filename) {
   return get_feature_names(filename, UINT_MAX);
 }
 
-bool ctrlc_pressed = false;
-void ctrlc_handler(int signal) {
-  if (ctrlc_pressed) {
-    exit(1);
-  }
-  else {
-    ctrlc_pressed = true;
-  }
-}
-
-VariableIndex linear_score(Hypergraph& hg, vector<float>* input, VariableIndex& i_w) {
+VariableIndex linear_score(ComputationGraph& hg, vector<float>* input, VariableIndex& i_w) {
   unsigned num_dimensions = input->size();
   VariableIndex i_h = hg.add_input({num_dimensions}, input); // Hypothesis feature vector
   VariableIndex i_s = hg.add_function<MatrixMultiply>({i_w, i_h}); // Hypothesis score
   return i_s;
 }
 
-VariableIndex nonlinear_score(Hypergraph& hg, vector<float>* input, VariableIndex& i_w1, VariableIndex& i_w2, VariableIndex& i_b) {
+VariableIndex nonlinear_score(ComputationGraph& hg, vector<float>* input, VariableIndex& i_w1, VariableIndex& i_w2, VariableIndex& i_b) {
   unsigned num_dimensions = input->size(); 
   VariableIndex i_h = hg.add_input({num_dimensions}, input); // Hypothesis feature vector
-  VariableIndex i_g = hg.add_function<Multilinear>({i_b, i_w1, i_h});
+  VariableIndex i_g = hg.add_function<AffineTransform>({i_b, i_w1, i_h});
   VariableIndex i_t = hg.add_function<Tanh>({i_g});
   VariableIndex i_s = hg.add_function<MatrixMultiply>({i_w2, i_t});
   return i_s;
 }
 
 int main(int argc, char** argv) {
-  srand(0);
   if (argc < 2) {
     cerr << "Usage: " << argv[0] << " kbest.txt" << endl;
     cerr << endl;
@@ -93,10 +98,11 @@ int main(int argc, char** argv) {
   signal (SIGINT, ctrlc_handler);
   const string kbest_filename = argv[1];
 
+  cerr << "Running on " << Eigen::nbThreads() << " threads." << endl;
+
   cerr << "Reading feature names from k-best list...\n";
   unordered_set<string> feature_names = get_feature_names(kbest_filename, 1000);
   unsigned num_dimensions = feature_names.size();
-  unsigned samples_per_sentence = 10;
   cerr << "Found " << num_dimensions << " features.\n";
 
   cerr << "Building feature name-id maps...\n";
@@ -109,6 +115,19 @@ int main(int argc, char** argv) {
     feat_map_index++;
   }
 
+  cerr << "Building model...\n"; 
+  cnn::Initialize(argc, argv);
+  Model m;
+  SimpleSGDTrainer sgd(&m, 0.0, 0.01);
+  //AdadeltaTrainer sgd(&m, 0.0, 1e-6);
+  sgd.eta_decay = 0.05;
+  unsigned samples_per_sentence = 10;
+
+  double margin = 1.0;
+  vector<float> ref_features(num_dimensions);
+  vector<float> hyp_features(num_dimensions);
+  ComputationGraph hg;
+
   cerr << "Reading k-best list...\n";
   #ifdef FAST
   FastPairSampler sampler(kbest_filename, feat2id, samples_per_sentence);
@@ -116,16 +135,6 @@ int main(int argc, char** argv) {
   PairSampler* sampler = NULL;
   #endif
 
-  cerr << "Building model...\n"; 
-  cnn::Initialize(argc, argv);
-  Model m;
-  SimpleSGDTrainer sgd(&m);
-
-  double margin = 1.0;
-  double learning_rate = 1.0e-1;
-  vector<float> ref_features(num_dimensions);
-  vector<float> hyp_features(num_dimensions);
-  Hypergraph hg;
 
   #ifdef NONLINEAR
   unsigned hidden_size = 50;
@@ -133,14 +142,14 @@ int main(int argc, char** argv) {
   Parameters& p_w2 = *m.add_parameters({1, hidden_size});
   Parameters& p_b = *m.add_parameters({hidden_size});
 
-  VariableIndex i_w1 = hg.add_parameter(&p_w1);
-  VariableIndex i_w2 = hg.add_parameter(&p_w2);
-  VariableIndex i_b = hg.add_parameter(&p_b);
+  VariableIndex i_w1 = hg.add_parameters(&p_w1);
+  VariableIndex i_w2 = hg.add_parameters(&p_w2);
+  VariableIndex i_b = hg.add_parameters(&p_b);
   VariableIndex i_rs = nonlinear_score(hg, &ref_features, i_w1, i_w2, i_b); // Reference score
   VariableIndex i_hs = nonlinear_score(hg, &hyp_features, i_w1, i_w2, i_b); // Hypothesis score
   #else
   Parameters& p_w = *m.add_parameters({1, num_dimensions});
-  VariableIndex i_w = hg.add_parameter(&p_w); // The weight vector 
+  VariableIndex i_w = hg.add_parameters(&p_w); // The weight vector 
   VariableIndex i_rs = linear_score(hg, &ref_features, i_w); // Reference score
   VariableIndex i_hs = linear_score(hg, &hyp_features, i_w); // Hypothesis score
   #endif
@@ -150,7 +159,10 @@ int main(int argc, char** argv) {
   VariableIndex i_rl = hg.add_function<Rectify>({i_l}); // max(0, margin - ref_score + hyp_score)
 
   cerr << "Training model...\n";
-  for (unsigned iteration = 0; iteration < 10; iteration++) {
+  unsigned minibatch_size = 1;
+  unsigned minibatch_index = 0;
+  for (unsigned iteration = 0; iteration <= 100; iteration++) {
+    srand(1);
     #ifdef FAST
     sampler.reset();
     FastHypothesisPair hyp_pair; 
@@ -166,7 +178,6 @@ int main(int argc, char** argv) {
     while (sampler->next(hyp_pair)) {
     #endif
       cerr << hyp_pair.first->sentence_id << "\r";
-      cout << hyp_pair.first->sentence_id << "\n";
       for (unsigned i = 0; i < num_dimensions; ++i) {
         ref_features[i] = 0.0;
         hyp_features[i] = 0.0;
@@ -174,32 +185,32 @@ int main(int argc, char** argv) {
       #ifdef FAST
       for (auto it = hyp_pair.first->features.begin(); it != hyp_pair.first->features.end(); ++it) {
         ref_features[it->first] = it->second;
-        //cout << "r" << it->first << " " << it->second << endl;
       }
       for (auto it = hyp_pair.second->features.begin(); it != hyp_pair.second->features.end(); ++it) {
         hyp_features[it->first] = it->second;
-        //cout << "h" << it->first << " " << it->second << endl;
       }
       #else
       for (auto it = hyp_pair.first->features.begin(); it != hyp_pair.first->features.end(); ++it) {
         if (feat2id.find(it->first) != feat2id.end()) {
           unsigned id = feat2id[it->first];
           ref_features[id] = it->second;
-          //cout << "r" << id << " " << it->second << endl;
         }
       }
       for (auto it = hyp_pair.second->features.begin(); it != hyp_pair.second->features.end(); ++it) {
         if (feat2id.find(it->first) != feat2id.end()) {
           unsigned id = feat2id[it->first];
           hyp_features[id] = it->second;
-          //cout << "h" << id << " " << it->second << endl;
         }
       }
       #endif
       loss += as_scalar(hg.forward());
-      cout << as_scalar(hg.forward()) << endl;
-      hg.backward();
-      sgd.update(learning_rate);
+      if (iteration != 0) {
+        hg.backward();
+        if (++minibatch_index == minibatch_size) { 
+          minibatch_index = 0;
+          sgd.update(1.0 / minibatch_size);
+        } 
+      }
       if (ctrlc_pressed) {
         break;
       }
@@ -214,16 +225,15 @@ int main(int argc, char** argv) {
     if (ctrlc_pressed) {
       break;
     }
-    cerr << "Iteration " << iteration << " loss: " << loss << endl;
-    cout << "ITERATION " << iteration << " done." << endl;
+    cerr << "Iteration " << iteration << " loss: " << loss << endl;    
   }
 
-/*  boost::archive::text_oarchive oa(cout);
+  boost::archive::text_oarchive oa(cout);
   #ifdef NONLINEAR
-  oa << p_w1 << p_w2 << p_b << feat2id;
+  oa << num_dimensions << hidden_size << p_w1 << p_w2 << p_b << feat2id;
   #else
-  oa << p_w << feat2id;
-  #endif */
+  oa << num_dimensions << p_w << feat2id;
+  #endif
 
   return 0;
 }

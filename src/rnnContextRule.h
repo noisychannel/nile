@@ -1,5 +1,5 @@
 #pragma warning
-#include "cnn/edges.h"
+#include "cnn/nodes.h"
 #include "cnn/cnn.h"
 #include "cnn/training.h"
 #include "cnn/timing.h"
@@ -92,18 +92,18 @@ struct RNNContextRule {
 
   // This is a general recurrence operation for an RNN over a sequence
   // Reads in a sequence, creates and returns hidden states.
-  std::vector<VariableIndex> Recurrence(const std::vector<int>& sequence, Hypergraph& hg, Params p, Builder builder) {
+  std::vector<VariableIndex> Recurrence(const std::vector<int>& sequence, ComputationGraph& hg, Params p, Builder builder) {
     const unsigned sequenceLen = sequence.size() - 1;
     std::vector<VariableIndex> hiddenStates;
-    VariableIndex i_R = hg.add_parameter(p.p_R);
-    VariableIndex i_bias = hg.add_parameter(p.p_bias);
+    VariableIndex i_R = hg.add_parameters(p.p_R);
+    VariableIndex i_bias = hg.add_parameters(p.p_bias);
     for (unsigned t = 0; t < sequenceLen; ++t) {
       // Get the embedding for the current input token
       VariableIndex i_x_t = hg.add_lookup(p.p_w, sequence[t]);
       // y_t = RNN(x_t)
-      VariableIndex i_y_t = builder.add_input(i_x_t, &hg);
+      VariableIndex i_y_t = builder.add_input(Expression(&hg, i_x_t)).i;
       // r_T = bias + R * y_t
-      VariableIndex i_r_t = hg.add_function<Multilinear>({i_bias, i_R, i_y_t});
+      VariableIndex i_r_t = hg.add_function<AffineTransform>({i_bias, i_R, i_y_t});
       VariableIndex i_h_t = hg.add_function<Tanh>({i_r_t});
       hiddenStates.push_back(i_h_t);
     }
@@ -117,17 +117,17 @@ struct RNNContextRule {
   // create the "contextual-rule" embedding.
   // This function returns the contextual rule embedding for one context
   // instance.
-  VariableIndex BuildRNNGraph(struct Context c, Hypergraph& hg) {
+  VariableIndex BuildRNNGraph(struct Context c, ComputationGraph& hg) {
     //Initialize builders
-    builder_context_left.new_graph(&hg);
-    builder_context_right.new_graph(&hg);
-    builder_rule_source.new_graph(&hg);
-    builder_rule_target.new_graph(&hg);
+    builder_context_left.new_graph(hg);
+    builder_context_right.new_graph(hg);
+    builder_rule_source.new_graph(hg);
+    builder_rule_target.new_graph(hg);
     // Tell the builder that we are about to start a recurrence
-    builder_context_left.start_new_sequence(&hg);
-    builder_context_right.start_new_sequence(&hg);
-    builder_rule_source.start_new_sequence(&hg);
-    builder_rule_target.start_new_sequence(&hg);
+    builder_context_left.start_new_sequence();
+    builder_context_right.start_new_sequence();
+    builder_rule_source.start_new_sequence();
+    builder_rule_target.start_new_sequence();
     // Create the symbolic graph for the unrolled recurrent network
     std::vector<VariableIndex> hiddens_cl = Recurrence(c.leftContext, hg,
                                 {p_w_source, p_R_cl, p_bias_cl}, builder_context_left);
@@ -149,7 +149,7 @@ struct RNNContextRule {
   // The embeddings are currently simply summed together to get the feature
   // vector for the hypothesis. This may change in the future.
   // TODO (gaurav)
-  VariableIndex BuildRuleSequenceModel(std::vector<struct Context> cSeq, Hypergraph& hg) {
+  VariableIndex BuildRuleSequenceModel(std::vector<struct Context> cSeq, ComputationGraph& hg) {
     //TODO; Is this count right ?
     const unsigned cSeqLen = cSeq.size() - 1;
     std::vector<VariableIndex> ruleEmbeddings;
@@ -232,7 +232,7 @@ std::vector<Context> getContexts(std::string t, vector<int> s) {
 
 VariableIndex getRNNRuleContext(vector<int>& src, string& tgt,
   LookupParameters* p_w_source, LookupParameters* p_w_target,
-    Hypergraph& hg, Model& model) {
+    ComputationGraph& hg, Model& model) {
 //int main(int argc, char** argv) {
   //1. Source sentence
   //2. Target Hyp
@@ -247,7 +247,7 @@ VariableIndex getRNNRuleContext(vector<int>& src, string& tgt,
   //vector< vector<int> > training, dev;
 
   std::vector<Context> contexts = getContexts(tgt, src);
-  RNNContextRule<RNNBuilder> rnncr(model, p_w_source, p_w_target);
+  RNNContextRule<SimpleRNNBuilder> rnncr(model, p_w_source, p_w_target);
   return rnncr.BuildRuleSequenceModel(contexts, hg);
 
   //std::string sourceLine;
@@ -281,7 +281,7 @@ VariableIndex getRNNRuleContext(vector<int>& src, string& tgt,
   //// Read contexts and start recurrence
   //Model model;
   //Trainer* sgd = new SimpleSGDTrainer(&model);
-  //Hypergraph hg;
+  //ComputationGraph hg;
 }
 
 /*int main(int argc, char** argv) {
@@ -291,7 +291,7 @@ VariableIndex getRNNRuleContext(vector<int>& src, string& tgt,
   //cnn::Dict targetD;
   LookupParameters* p_w_source;
   LookupParameters* p_w_target;
-  Hypergraph hg;
+  ComputationGraph hg;
   Model model;
   getRNNRuleContext(rawSrc, targetHyp, p_w_source, p_w_target, hg, model);
 }*/

@@ -60,7 +60,6 @@ bool PairSampler::next(HypothesisPair& out) {
   for (unsigned attempts = 0; attempts < 100; attempts++) {
     unsigned i = rand() % current_sent_hypotheses.size();
     unsigned j = rand() % current_sent_hypotheses.size();
-    cout << current_sent_id << " " << i << " " << j << endl;
 
     /*if (current_sent_hypotheses[i].metric_score - current_sent_hypotheses[j].metric_score == 0.0) {
       failures++;
@@ -191,7 +190,6 @@ bool FastPairSampler::next(FastHypothesisPair& out) {
   for (unsigned attempts = 0; attempts < 100; attempts++) {
     unsigned i = rand() % current_sent_hypotheses.size();
     unsigned j = rand() % current_sent_hypotheses.size();
-    cout << *current << " " << i << " " << j << endl;
  
     /*if (current_sent_hypotheses[i].metric_score - current_sent_hypotheses[j].metric_score == 0.0) {
       failures++;
