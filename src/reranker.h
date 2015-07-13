@@ -24,26 +24,31 @@ public:
   virtual ~RerankerModel();
   void ReadFeatureNames(string kbest_filename);
   void ReadFeatureNames(string kbest_filename, unsigned max_features);
+  virtual void InitializeParameters() = 0;
   void ConvertFeatureVector(KbestHypothesis& hypothesis, vector<float>& out);
   void ConvertKbestSet(vector<KbestHypothesis>& hyps, vector<vector<float> >& features, vector<float>& scores);
-  void BuildComputationGraph(vector<vector<float> >& features, vector<float>& gold_scores, ComputationGraph& cg);
-  virtual void InitializeParameters(Model& model) = 0;
+  void BuildComputationGraph(vector<vector<float> >& features, vector<float>& gold_scores, ComputationGraph& cg); 
   virtual Expression score(vector<float>* input_features, ComputationGraph& cg) = 0;
 
+  Model cnn_model;
+
 protected:
-  unordered_set<string> feature_names;
   unsigned num_dimensions;
   map<string, unsigned> feat2id;
   map<unsigned, string> id2feat;
 
   friend class boost::serialization::access;
   template<class Archive>
-  void serialize(Archive& ar, const unsigned int) {}
+  void serialize(Archive& ar, const unsigned int) {
+    ar & num_dimensions;
+    ar & feat2id;
+    ar & id2feat;
+  }
 };
 
 class LinearRerankerModel : public RerankerModel {
 public:
-  void InitializeParameters(Model& model); 
+  void InitializeParameters();
   Expression score(vector<float>* input_features, ComputationGraph& cg);
 
 private:
@@ -53,9 +58,7 @@ private:
   template<class Archive>
   void serialize(Archive& ar, const unsigned int) {
     ar & boost::serialization::base_object<RerankerModel>(*this);
-    ar & num_dimensions;
     ar & p_w;
-    ar & feat2id;
   }
 };
 BOOST_CLASS_EXPORT_KEY(LinearRerankerModel)
@@ -63,7 +66,7 @@ BOOST_CLASS_EXPORT_KEY(LinearRerankerModel)
 class NonlinearRerankerModel : public RerankerModel {
 public:
   explicit NonlinearRerankerModel(unsigned hidden_layer_size);
-  void InitializeParameters(Model& model);
+  void InitializeParameters();
   Expression score(vector<float>* input_features, ComputationGraph& cg);
 
 private:
@@ -77,12 +80,10 @@ private:
   template<class Archive>
   void serialize(Archive& ar, const unsigned int) {
     ar & boost::serialization::base_object<RerankerModel>(*this);
-    ar & num_dimensions;
     ar & hidden_size;
     ar & p_w1;
     ar & p_w2;
     ar & p_b;
-    ar & feat2id;
   }
 };
 BOOST_CLASS_EXPORT_KEY(NonlinearRerankerModel)

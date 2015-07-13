@@ -2,53 +2,29 @@
 #include <vector>
 #include <string>
 #include "kbest_hypothesis.h"
+#include "kbestlist.h"
 using namespace std;
 
 typedef pair<KbestHypothesis*, KbestHypothesis*> HypothesisPair;
 class PairSampler {
+public:
+  PairSampler(string filename, unsigned samples_per_sentence);
+  bool next(HypothesisPair& out);
 private:
-  ifstream* input_file;
-  string current_sent_id;
-  vector<KbestHypothesis> current_sent_hypotheses;
-  KbestHypothesis* next_hypothesis;
-
   unsigned samples_per_sentence;
   unsigned samples_taken;
   unsigned failures;
-
-public:
-  PairSampler(string filename, unsigned samples_per_sentence);
-  ~PairSampler();
-  bool next(HypothesisPair& out);
-private:
-  bool read_next_hyp_set();
+  KbestList kbest_list;
+  vector<KbestHypothesis> current_sent_hypotheses;
 };
 
-PairSampler::PairSampler(string filename, unsigned samples_per_sentence) {
-  input_file = new ifstream(filename);
-  current_sent_id = "";
-  next_hypothesis = NULL;
-  read_next_hyp_set();
-  samples_taken = 0;
-  this->samples_per_sentence = samples_per_sentence;
-}
-
-PairSampler::~PairSampler() {
-  if (next_hypothesis != NULL) {
-    delete next_hypothesis;
-  }
-  next_hypothesis = NULL;
-
-  if (input_file != NULL) {
-    input_file->close();
-    delete input_file;
-    input_file = NULL;
-  }
+PairSampler::PairSampler(string filename, unsigned samples_per_sentence) : kbest_list(filename), samples_per_sentence(samples_per_sentence), samples_taken(0) {
+  kbest_list.NextSet(current_sent_hypotheses);
 }
 
 bool PairSampler::next(HypothesisPair& out) {
   while (samples_taken >= samples_per_sentence || current_sent_hypotheses.size() < 2) {
-    if (!read_next_hyp_set()) {
+    if (!kbest_list.NextSet(current_sent_hypotheses)) {
       return false;
     }
     samples_taken = 0;
@@ -82,48 +58,6 @@ bool PairSampler::next(HypothesisPair& out) {
   return next(out);
   //cerr << "Unable to find a hypothesis pair with different metric scores after 100 tries!" << endl;
   //exit(1);
-}
-
-bool PairSampler::read_next_hyp_set() { 
-  if (input_file == NULL) {
-    return false;
-  }
-  assert (input_file->is_open());
-  current_sent_hypotheses.clear();
-
-  if (next_hypothesis != NULL) {
-    assert (next_hypothesis->sentence_id.length() > 0);
-    current_sent_hypotheses.push_back(*next_hypothesis);
-    current_sent_id = next_hypothesis->sentence_id;
-  }
-
-  string line;
-  while(getline(*input_file, line)) {
-    KbestHypothesis hyp = KbestHypothesis::parse(line);
-    if (current_sent_id == "") {
-      current_sent_id = hyp.sentence_id;
-    }
-    if (hyp.sentence_id != current_sent_id) {
-      next_hypothesis = new KbestHypothesis(hyp);
-      cerr << current_sent_id << "\r";
-      failures = 0;
-      return true;
-    }
-    current_sent_hypotheses.push_back(hyp);
-  }
- 
-  assert (current_sent_hypotheses.size() != 0);
-  if (input_file != NULL) {
-    input_file->close();
-    delete input_file;
-    input_file = NULL;
-  }
-
-  if (next_hypothesis != NULL) {
-    delete next_hypothesis;
-    next_hypothesis = NULL;
-  } 
-  return true;
 }
 
 typedef pair<FastKbestHypothesis*, FastKbestHypothesis*> FastHypothesisPair;

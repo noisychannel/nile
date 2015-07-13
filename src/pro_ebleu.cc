@@ -19,16 +19,14 @@
 #include "utils.h"
 #include "reranker.h"
 
-#define NONLINEAR
-
 using namespace std;
 using namespace cnn;
 using namespace cnn::expr;
 
-const unsigned num_iterations = 100;
+const unsigned num_iterations = 10000;
 const unsigned max_features = 1000;
-const unsigned hidden_size = 50;
-const bool nonlinear = true;
+const unsigned hidden_size = 500;
+const bool nonlinear = false;
 
 bool ctrlc_pressed = false;
 void ctrlc_handler(int signal) {
@@ -65,10 +63,6 @@ int main(int argc, char** argv) {
   cerr << "Running on " << Eigen::nbThreads() << " threads." << endl;
 
   cnn::Initialize(argc, argv);
-  Model cnn_model;
-  //SimpleSGDTrainer sgd(&cnn_model, 0.0, 0.1);
-  AdadeltaTrainer sgd(&cnn_model, 0.0, 1e-6);
-  sgd.eta_decay = 0.05;
 
   RerankerModel* reranker_model = NULL;
   if (nonlinear) {
@@ -79,7 +73,12 @@ int main(int argc, char** argv) {
   }
 
   reranker_model->ReadFeatureNames(kbest_filename, max_features);
-  reranker_model->InitializeParameters(cnn_model);
+  reranker_model->InitializeParameters();
+
+  //SimpleSGDTrainer sgd(&reranker_model->cnn_model, 0.0, 10.0);
+  AdadeltaTrainer sgd(&reranker_model->cnn_model, 0.0);
+  //sgd.eta_decay = 0.05;
+  sgd.clipping_enabled = false;
 
   cerr << "Training model...\n";
   vector<KbestHypothesis> hypotheses;

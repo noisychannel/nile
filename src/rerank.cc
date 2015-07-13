@@ -13,9 +13,9 @@
 #include <unordered_map>
 #include <climits>
 #include <csignal>
-#include "pair_sampler.h"
 
-#define NONLINEAR
+#include "kbestlist.h"
+#include "reranker.h"
 
 using namespace std;
 using namespace cnn;
@@ -47,90 +47,47 @@ int main(int argc, char** argv) {
   const string model_filename = argv[1];
   const string kbest_filename = argv[2];
 
-  map<string, unsigned> feat2id;
-
   cerr << "Building model...\n"; 
   cnn::Initialize(argc, argv);
-  Model m;
-  SimpleSGDTrainer sgd(&m);
 
-  unsigned num_dimensions = 10000; 
+  RerankerModel* reranker_model = NULL;
 
   cerr << "Reading model...\n";
   ifstream model_file(model_filename);
   boost::archive::text_iarchive ia(model_file);
-  #ifdef NONLINEAR
-  unsigned hidden_size;
-  ia >> num_dimensions >> hidden_size;
-  #else
-  ia >> num_dimensions;
-  #endif
-  vector<float> hyp_features(num_dimensions);
+  ia >> reranker_model;
 
-  #ifdef NONLINEAR
-  Parameters& p_w1 = *m.add_parameters({hidden_size, num_dimensions});
-  Parameters& p_w2 = *m.add_parameters({1, hidden_size});
-  Parameters& p_b = *m.add_parameters({hidden_size});
+  vector<KbestHypothesis> hypotheses;
+  vector<vector<float> > hypothesis_features(hypotheses.size());
+  vector<float> metric_scores(hypotheses.size()); //unused
 
-  ComputationGraph hg;
-  VariableIndex i_w1 = hg.add_parameters(&p_w1);
-  VariableIndex i_w2 = hg.add_parameters(&p_w2);
-  VariableIndex i_b = hg.add_parameters(&p_b);
-  VariableIndex i_h = hg.add_input({num_dimensions}, &hyp_features); // Hypothesis feature vector
-  VariableIndex i_hs1 = hg.add_function<AffineTransform>({i_b, i_w1, i_h}); // Hypothesis score
-  VariableIndex i_hs2 = hg.add_function<Tanh>({i_hs1});
-  VariableIndex i_hs3 = hg.add_function<Concatenate>({i_hs2});
-  VariableIndex i_hs4 = hg.add_function<MatrixMultiply>({i_w2, i_hs3});
+  unsigned num_sentences = 0;
+  KbestList kbest_list(kbest_filename);
+  while (kbest_list.NextSet(hypotheses)) {
+    assert (hypotheses.size() > 0);
+    num_sentences++;
+    cerr << num_sentences << "\r";
 
-  #else
-  Parameters& p_w = *m.add_parameters({1, num_dimensions});
-
-  ComputationGraph hg;
-  VariableIndex i_w = hg.add_parameters(&p_w); // The weight vector 
-  VariableIndex i_h = hg.add_input({num_dimensions}, &hyp_features); // Hypothesis feature vector
-  VariableIndex i_hs = hg.add_function<MatrixMultiply>({i_w, i_h}); // Hypothesis score
-  #endif
-
-  #ifdef NONLINEAR
-  ia >> p_w1 >> p_w2 >> p_b >> feat2id;
-  #else
-  ia >> p_w >> feat2id;
-  #endif
-
-
-  cerr << "Reranking..." << endl;
-  ifstream kbest_file(kbest_filename);
-  string best_line = "";
-  double best_score = 0.0;
-  string current_id = "";
-
-  for (string line; getline(kbest_file, line);) {
-    KbestHypothesis hyp = KbestHypothesis::parse(line);
-    if (hyp.sentence_id != current_id) {
-      if (current_id != "") {
-        cout << best_line << endl;
-        best_line = "";
-        best_score = 0.0;
+    ComputationGraph cg;
+    reranker_model->ConvertKbestSet(hypotheses, hypothesis_features, metric_scores);
+    KbestHypothesis* best = NULL;
+    double best_score = 0.0;
+    for (unsigned i = 0; i < hypotheses.size(); ++i) {
+      reranker_model->score(&hypothesis_features[i], cg);
+      double score = as_scalar(cg.incremental_forward());
+      if (score > best_score || best == NULL) {
+        best = &hypotheses[i];
+        best_score = score;
       }
-      cerr << hyp.sentence_id << "\r";
-      current_id = hyp.sentence_id;
     }
+    cout << best->sentence_id << " ||| " << best->sentence << " ||| ";
+    cout << "features yay" << " ||| " << best->metric_score << endl;
+  }
 
-    map<string, double>& features = hyp.features;
-    for (unsigned i = 0; i < num_dimensions; ++i) {
-      hyp_features[i] = 0.0;
-    }
-    for (auto it = features.begin(); it != features.end(); ++it) {
-      unsigned feat_id = feat2id[it->first];
-      hyp_features[feat_id] = it->second;
-    }
-    double score = as_scalar(hg.forward());
-    if (best_line == "" || score > best_score) {
-      best_line = line;
-      best_score = score;
-    }
-  } 
-  cout << best_line << endl;
+  if (reranker_model != NULL) {
+    delete reranker_model;
+    reranker_model = NULL;
+  }
  
   return 0;
 }

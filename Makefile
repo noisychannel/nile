@@ -56,18 +56,18 @@ $(OBJDIR)/rerank.o: $(SRCDIR)/rerank.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypoth
 	mkdir -p $(OBJDIR)
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/rerank.cc -o $(OBJDIR)/rerank.o
 
-$(BINDIR)/pro: $(OBJDIR)/pro.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/utils.o
+$(BINDIR)/pro: $(OBJDIR)/pro.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/utils.o $(OBJDIR)/kbestlist.o
 	mkdir -p $(BINDIR)
-	g++ $(LIBS) $(OBJDIR)/pro.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/utils.o -o $(BINDIR)/pro $(FINAL)
+	g++ $(LIBS) $(OBJDIR)/pro.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/utils.o $(OBJDIR)/kbestlist.o -o $(BINDIR)/pro $(FINAL)
 
 $(BINDIR)/pro_ebleu: $(OBJDIR)/pro_ebleu.o $(OBJDIR)/kbestlist.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/reranker.o
 	mkdir -p $(BINDIR)
 	g++ $(LIBS) $(OBJDIR)/pro_ebleu.o $(OBJDIR)/kbestlist.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/reranker.o -o $(BINDIR)/pro_ebleu $(FINAL)
 
-$(BINDIR)/pro_gaurav: $(OBJDIR)/pro_gaurav.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o 
+$(BINDIR)/pro_gaurav: $(OBJDIR)/pro_gaurav.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o
 	mkdir -p $(BINDIR)
-	g++ $(LIBS) $(OBJDIR)/pro_gaurav.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o -o $(BINDIR)/pro_gaurav $(FINAL)
+	g++ $(LIBS) $(OBJDIR)/pro_gaurav.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o -o $(BINDIR)/pro_gaurav $(FINAL)
 
-$(BINDIR)/rerank: $(OBJDIR)/rerank.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o
+$(BINDIR)/rerank: $(OBJDIR)/rerank.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o $(OBJDIR)/reranker.o
 	mkdir -p $(BINDIR)
-	g++ $(LIBS) $(OBJDIR)/rerank.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o -o $(BINDIR)/rerank $(FINAL)
+	g++ $(LIBS) $(OBJDIR)/rerank.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o $(OBJDIR)/reranker.o -o $(BINDIR)/rerank $(FINAL)
