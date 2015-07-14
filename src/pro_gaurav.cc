@@ -2,6 +2,7 @@
 #include "cnn/cnn.h"
 #include "cnn/training.h"
 #include "cnn/expr.h"
+#include "cnn/dict.h"
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
@@ -121,9 +122,6 @@ int main(int argc, char** argv) {
     }
     if (ctrlc_pressed) {
       break;
-    }
-    if (dev_filename.length() > 0) {
-      //double dev_score = score_devset();
     }
     cerr << "Iteration " << iteration << " loss: " << loss << " (EBLEU = " << -loss / num_sentences << ")" << endl;
   }
