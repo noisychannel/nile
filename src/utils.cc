@@ -1,6 +1,6 @@
 #include "utils.h"
 
-vector<string> tokenize(string input, string delimiter, int max_times) {
+vector<string> tokenize(const string& input, const string& delimiter, int max_times) {
   vector<string> tokens;
   //tokens.reserve(max_times);
   size_t last = 0;
@@ -13,15 +13,15 @@ vector<string> tokenize(string input, string delimiter, int max_times) {
   return tokens;
 }
 
-vector<string> tokenize(string input, string delimiter) {
+vector<string> tokenize(const string& input, const string& delimiter) {
   return tokenize(input, delimiter, input.length());
 }
 
-vector<string> tokenize(string input, char delimiter) {
+vector<string> tokenize(const string& input, char delimiter) {
   return tokenize(input, string(1, delimiter));
 }
 
-string strip(string input) {
+string strip(const string& input) {
   size_t start = 0;
   size_t end = input.length();
 
@@ -44,7 +44,7 @@ string strip(string input) {
   return input.substr(start, end - start);
 }
 
-vector<string> strip(vector<string> input) {
+vector<string> strip(const vector<string>& input) {
   vector<string> output(input.size());
   for (unsigned i = 0; i < input.size(); ++i) {
     output[i] = strip(input[i]);
@@ -52,7 +52,7 @@ vector<string> strip(vector<string> input) {
   return output;
 }
 
-map<string, double> parse_feature_string(string input) {
+map<string, double> parse_feature_string(const string& input) {
   map<string, double> output;
   for (string piece : tokenize(input, " ")) {
     vector<string> kvp = tokenize(piece, "=", 1);

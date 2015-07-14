@@ -19,13 +19,14 @@
 #include "kbestlist.h"
 #include "utils.h"
 #include "reranker.h"
+#include "gaurav.h"
 
 using namespace std;
 using namespace cnn;
 using namespace cnn::expr;
 
 const unsigned max_features = 1000;
-const unsigned num_iterations = 10000;
+const unsigned num_iterations = 1;
 const unsigned hidden_size = 500;
 const bool nonlinear = false;
 
@@ -87,6 +88,8 @@ int main(int argc, char** argv) {
   else {
     reranker_model = new LinearRerankerModel(converter->num_dimensions);
   }
+
+  GauravsModel gauravs_model (source_filename, source_embedding_filename, target_embedding_filename);
 
   //SimpleSGDTrainer sgd(&reranker_model->cnn_model, 0.0, 10.0);
   AdadeltaTrainer sgd(&reranker_model->cnn_model, 0.0);

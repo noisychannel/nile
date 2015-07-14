@@ -11,11 +11,11 @@
 
 using namespace std;
 
-vector<string> tokenize(string input, string delimiter, int max_times);
-vector<string> tokenize(string input, string delimiter);
-vector<string> tokenize(string input, char delimiter);
+vector<string> tokenize(const string& input, const string& delimiter, int max_times);
+vector<string> tokenize(const string& input, const string& delimiter);
+vector<string> tokenize(const string& input, char delimiter);
 
-string strip(string input);
-vector<string> strip(vector<string> input);
+string strip(const string& input);
+vector<string> strip(const vector<string>& input);
 
-map<string, double> parse_feature_string(string input);
+map<string, double> parse_feature_string(const string& input);
