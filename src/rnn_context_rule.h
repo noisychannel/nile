@@ -6,7 +6,6 @@
 #include "cnn/rnn.h"
 #include "cnn/lstm.h"
 #include "cnn/dict.h"
-#include "embedding.h"
 #include "utils.h"
 #include "kbest_hypothesis.h"
 

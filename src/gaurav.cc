@@ -1,11 +1,12 @@
 #include <fstream>
-
+#include <iostream>
 #include "gaurav.h"
 #include "utils.h"
 
 using namespace std;
 
 unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered_map<string, unsigned>& dict) {
+  cerr << "Loading embeddings from " << filename << " ... ";
   FILE *f;
   float len;
   long long words, size, a, b;
@@ -38,23 +39,18 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
   // Changes made by Gaurav Kumar (gkumar@cs.jhu.edu)
   // Returns a dictionary of word embeddings
   unordered_map<unsigned, vector<float>> embedDict;
-  for (int i = 0; i < words; i++){
+  for (int i = 0; i < words; i++) {
     string word = string(&vocab[i * max_w]);
+    dict[word] = i;
     vector<float> wordEmbedding;
 
     for (int b = 0; b< size; b++) {
       wordEmbedding.push_back(M[i * size + b]);
     }
-    for (vector<float>::const_iterator i = wordEmbedding.begin(); i != wordEmbedding.end(); ++i) {
-      auto it = dict.find(word);
-      if (it == dict.end()) {
-        dict[word] = dict.size();
-      }
-      unsigned wordId = dict[word];
-      embedDict[wordId].push_back(*i);;
-    }
+    embedDict[i] = wordEmbedding;
   }
 
+  assert (embedDict.size() == words);
   return embedDict;
 }
 

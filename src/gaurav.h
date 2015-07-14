@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include "cnn/dict.h"
 #include "cnn/expr.h"
-#include "embedding.h"
 
 using namespace std;
 using namespace cnn;
