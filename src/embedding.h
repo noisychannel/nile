@@ -29,20 +29,13 @@ struct Embedding {
   long size;
 };
 
-std::map<std::string, std::vector<float>> loadEmbeddings(const char* file_name) {
-//int main(int argc, char **argv) {
+std::map<std::string, std::vector<float>> LoadEmbeddings(const char* file_name) {
   FILE *f;
-  //char file_name[max_size];
   float len;
   long long words, size, a, b;
   char ch;
   float *M;
   char *vocab;
-  //if (argc < 2) {
-    //printf("Usage: ./distance <FILE>\nwhere FILE contains word projections in the BINARY FORMAT\n");
-    //return 0;
-  //}
-  //strcpy(file_name, argv[1]);
   f = fopen(file_name, "rb");
   if (f == NULL) {
     printf("Input file not found\n");

@@ -42,18 +42,17 @@ unordered_set<string> get_feature_names(string filename) {
   return get_feature_names(filename, UINT_MAX);
 }
 
+KbestConverter::KbestConverter() {}
 
-RerankerModel::RerankerModel() {
-  num_dimensions = 0;
-}
-
-RerankerModel::~RerankerModel() {}
-
-void RerankerModel::ReadFeatureNames(string kbest_filename) {
+KbestConverter::KbestConverter(string kbest_filename) {
   ReadFeatureNames(kbest_filename, UINT_MAX);
 }
 
-void RerankerModel::ReadFeatureNames(string kbest_filename, unsigned max_features) {
+KbestConverter::KbestConverter(string kbest_filename, unsigned max_features) {
+  ReadFeatureNames(kbest_filename, max_features);
+}
+
+void KbestConverter::ReadFeatureNames(string kbest_filename, unsigned max_features) {
   cerr << "Reading feature names from k-best list...\n";
   unordered_set<string> feature_names = get_feature_names(kbest_filename, max_features);
   num_dimensions = feature_names.size();
@@ -69,7 +68,7 @@ void RerankerModel::ReadFeatureNames(string kbest_filename, unsigned max_feature
   }
 }
 
-void RerankerModel::ConvertFeatureVector(KbestHypothesis& hypothesis, vector<float>& out) {
+void KbestConverter::ConvertFeatureVector(KbestHypothesis& hypothesis, vector<float>& out) {
   assert (num_dimensions > 0);
   assert (out.size() == num_dimensions);
   fill(out.begin(), out.end(), 0.0);
@@ -80,7 +79,7 @@ void RerankerModel::ConvertFeatureVector(KbestHypothesis& hypothesis, vector<flo
   }
 }
 
-void RerankerModel::ConvertKbestSet(vector<KbestHypothesis>& hyps, vector<vector<float> >& features, vector<float>& scores) {
+void KbestConverter::ConvertKbestSet(vector<KbestHypothesis>& hyps, vector<vector<float> >& features, vector<float>& scores) {
   assert (num_dimensions > 0);
   features.resize(hyps.size());
   scores.resize(hyps.size());
@@ -91,18 +90,38 @@ void RerankerModel::ConvertKbestSet(vector<KbestHypothesis>& hyps, vector<vector
   }
 }
 
-void RerankerModel::BuildComputationGraph(vector<vector<float> >& features, vector<float>& gold_scores, ComputationGraph& cg) {
+RerankerModel::RerankerModel() {
+  num_dimensions = 0;
+}
+
+RerankerModel::RerankerModel(unsigned num_dimensions) : num_dimensions(num_dimensions) {}
+
+RerankerModel::~RerankerModel() {}
+
+Expression RerankerModel::BatchScore(vector<vector<float> >& features, vector<float>& gold_scores, ComputationGraph& cg) {
   assert (features.size() == gold_scores.size());
   vector<Expression> model_scores(features.size());
   for (unsigned i = 0; i < features.size(); ++i) {
     model_scores[i] = score(&features[i], cg);
   }
   Expression model_score_vector = concatenate(model_scores);
+  return model_score_vector;
+}
+
+void RerankerModel::BuildComputationGraph(vector<vector<float> >& features, vector<float>& gold_scores, ComputationGraph& cg) {
+  Expression model_score_vector = BatchScore(features, gold_scores, cg);
   Expression hyp_probs = softmax(model_score_vector);
   assert (features.size() < LONG_MAX);
   Expression ref_scores = input(cg, {(long)features.size()}, &gold_scores);
   Expression ebleu = dot_product(hyp_probs, ref_scores);
   Expression loss = -ebleu;
+}
+
+LinearRerankerModel::LinearRerankerModel() : RerankerModel(0) {
+}
+
+LinearRerankerModel::LinearRerankerModel(unsigned num_dimensions) : RerankerModel(num_dimensions) {
+  InitializeParameters();
 }
 
 void LinearRerankerModel::InitializeParameters() {
@@ -118,12 +137,12 @@ Expression LinearRerankerModel::score(vector<float>* input_features, Computation
   return s;
 }
 
-NonlinearRerankerModel::NonlinearRerankerModel() {
+NonlinearRerankerModel::NonlinearRerankerModel() : RerankerModel(0) {
   hidden_size = 0;
 }
 
-NonlinearRerankerModel::NonlinearRerankerModel(unsigned hidden_layer_size) {
-  hidden_size = hidden_layer_size; 
+NonlinearRerankerModel::NonlinearRerankerModel(unsigned num_dimensions, unsigned hidden_layer_size) : RerankerModel(num_dimensions), hidden_size(hidden_layer_size) {
+  InitializeParameters();
 }
 
 void NonlinearRerankerModel::InitializeParameters() {

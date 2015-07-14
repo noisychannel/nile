@@ -50,11 +50,13 @@ int main(int argc, char** argv) {
   cerr << "Building model...\n"; 
   cnn::Initialize(argc, argv);
 
+  KbestConverter* converter = NULL;
   RerankerModel* reranker_model = NULL;
 
   cerr << "Reading model...\n";
   ifstream model_file(model_filename);
   boost::archive::text_iarchive ia(model_file);
+  ia >> converter;
   ia >> reranker_model;
 
   vector<KbestHypothesis> hypotheses;
@@ -69,7 +71,7 @@ int main(int argc, char** argv) {
     cerr << num_sentences << "\r";
 
     ComputationGraph cg;
-    reranker_model->ConvertKbestSet(hypotheses, hypothesis_features, metric_scores);
+    converter->ConvertKbestSet(hypotheses, hypothesis_features, metric_scores);
     KbestHypothesis* best = NULL;
     double best_score = 0.0;
     for (unsigned i = 0; i < hypotheses.size(); ++i) {
@@ -82,6 +84,11 @@ int main(int argc, char** argv) {
     }
     cout << best->sentence_id << " ||| " << best->sentence << " ||| ";
     cout << "features yay" << " ||| " << best->metric_score << endl;
+  }
+
+  if (converter != NULL) {
+    delete converter;
+    converter = NULL;
   }
 
   if (reranker_model != NULL) {

@@ -23,10 +23,22 @@ using namespace std;
 using namespace cnn;
 using namespace cnn::expr;
 
-const unsigned num_iterations = 10000;
 const unsigned max_features = 1000;
+const unsigned num_iterations = 10000;
 const unsigned hidden_size = 500;
 const bool nonlinear = false;
+
+unordered_map<string, vector<int> > ReadSource(string filename, Dict& src_dict) {
+  unordered_map<string, vector<int> > r;
+  ifstream f(filename);
+  for (string line; getline(f, line);) {
+    vector<string> pieces = tokenize(line, "|||");
+    assert (pieces.size() == 2);
+    assert (r.find(pieces[0]) == r.end());
+    r[pieces[0]] = ReadSentence(pieces[1], &src_dict);
+  }
+  return r;
+}
 
 bool ctrlc_pressed = false;
 void ctrlc_handler(int signal) {
@@ -39,7 +51,7 @@ void ctrlc_handler(int signal) {
 }
 
 void ShowUsageAndExit(string program_name) {
-    cerr << "Usage: " << program_name << " kbest.txt [dev.txt]" << endl;
+    cerr << "Usage: " << program_name << " tune_kbest tune_source source_embeddings target_embeddings" << endl;
     cerr << endl;
     cerr << "Where kbest.txt contains lines of them form" << endl;
     cerr << "sentence_id ||| hypothesis ||| features ||| ... ||| metric score" << endl;
@@ -52,27 +64,15 @@ void ShowUsageAndExit(string program_name) {
     exit(1);
 }
 
-template <typename T>
-unsigned argmax(vector<T> v) {
-  assert (v.size() > 0);
-  T best = v[0];
-  unsigned bi = 0;
-  for (unsigned i = 1; i < v.size(); ++i) {
-    if (v[i] > best) {
-      bi = i;
-      best = v[i];
-    }
-  }
-  return bi;
-}
-
 int main(int argc, char** argv) {
   signal (SIGINT, ctrlc_handler);
-  if (argc < 2) {
+  if (argc < 5) {
     ShowUsageAndExit(argv[0]);
   }
   const string kbest_filename = argv[1];
-  const string dev_filename = (argc >= 3) ? argv[2] : "";
+  const string source_filename = argv[2];
+  const string source_embedding_filename = argv[3];
+  const string target_embedding_filename = argv[4];
 
   cerr << "Running on " << Eigen::nbThreads() << " threads." << endl;
 
@@ -96,8 +96,6 @@ int main(int argc, char** argv) {
   vector<KbestHypothesis> hypotheses;
   vector<vector<float> > hypothesis_features(hypotheses.size());
   vector<float> metric_scores(hypotheses.size());
-  double dev_score = 0.0;
-  double best_dev_score = 0.0;
 
   for (unsigned iteration = 0; iteration <= num_iterations; iteration++) {
     double loss = 0.0;
@@ -124,43 +122,15 @@ int main(int argc, char** argv) {
     if (ctrlc_pressed) {
       break;
     }
-    cerr << "Iteration " << iteration << " loss: " << loss << " (EBLEU = " << -loss / num_sentences << ")" << endl;
     if (dev_filename.length() > 0) {
-      dev_score = 0.0;
-      unsigned dev_sentences = 0;
-      KbestList dev_kbest(dev_filename);
-      while (dev_kbest.NextSet(hypotheses)) {
-        dev_sentences++;
-        ComputationGraph cg;
-        converter->ConvertKbestSet(hypotheses, hypothesis_features, metric_scores);
-        reranker_model->BatchScore(hypothesis_features, metric_scores, cg);
-        vector<float> scores = as_vector(cg.incremental_forward());
-        unsigned best_index = argmax(scores);
-        dev_score += metric_scores[best_index];
-      }
-      dev_score /= dev_sentences;
-      cerr << "Dev score: " << dev_score;
-      bool new_best = (dev_score > best_dev_score);
-      if (new_best) {
-        best_dev_score = dev_score;
-        cerr << " (New best!)";
-      }
-      cerr << endl;
-      if (new_best) {
-        ftruncate(fileno(stdout), 0);
-        fseek(stdout, 0, SEEK_SET);
-        boost::archive::text_oarchive oa(cout);
-        oa << converter;
-        oa << reranker_model;
-      }
+      //double dev_score = score_devset();
     }
+    cerr << "Iteration " << iteration << " loss: " << loss << " (EBLEU = " << -loss / num_sentences << ")" << endl;
   }
 
-  if (dev_filename.length() == 0) {
-    boost::archive::text_oarchive oa(cout);
-    oa << converter;
-    oa << reranker_model;
-  }
+  boost::archive::text_oarchive oa(cout);
+  oa << converter;
+  oa << reranker_model;
 
   if (converter != NULL) {
     delete converter;
