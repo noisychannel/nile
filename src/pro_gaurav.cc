@@ -20,6 +20,7 @@
 #include "utils.h"
 #include "reranker.h"
 #include "gaurav.h"
+#include "kbest_converter.h"
 
 using namespace std;
 using namespace cnn;
@@ -101,11 +102,12 @@ int main(int argc, char** argv) {
   vector<vector<float> > hypothesis_features(hypotheses.size());
   vector<float> metric_scores(hypotheses.size());
 
+  KbestList* kbest_list = new SimpleKbestList(kbest_filename);
   for (unsigned iteration = 0; iteration <= num_iterations; iteration++) {
     double loss = 0.0;
     unsigned num_sentences = 0;
-    KbestList kbest_list(kbest_filename);
-    while (kbest_list.NextSet(hypotheses)) {
+    kbest_list->Reset();
+    while (kbest_list->NextSet(hypotheses)) {
       assert (hypotheses.size() > 0);
       num_sentences++;
       cerr << num_sentences << "\r";
@@ -132,6 +134,11 @@ int main(int argc, char** argv) {
   boost::archive::text_oarchive oa(cout);
   oa << converter;
   oa << reranker_model;
+
+  if (kbest_list != NULL) {
+    delete kbest_list;
+    kbest_list = NULL;
+  }
 
   if (converter != NULL) {
     delete converter;

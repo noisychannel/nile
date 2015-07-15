@@ -18,6 +18,7 @@
 #include "kbestlist.h"
 #include "utils.h"
 #include "reranker.h"
+#include "kbest_converter.h"
 
 using namespace std;
 using namespace cnn;
@@ -26,7 +27,7 @@ using namespace cnn::expr;
 const unsigned num_iterations = 10000;
 const unsigned max_features = 1000;
 const unsigned hidden_size = 500;
-const bool nonlinear = true;
+const bool nonlinear = false;
 
 bool ctrlc_pressed = false;
 void ctrlc_handler(int signal) {
@@ -99,11 +100,18 @@ int main(int argc, char** argv) {
   double dev_score = 0.0;
   double best_dev_score = 0.0;
 
+  KbestList* kbest_list = new KbestListInRam(kbest_filename);
+  KbestList* dev_kbest = NULL;
+  if (dev_filename.length() > 0) {
+    dev_kbest = new KbestListInRam(dev_filename);
+  }
+
   for (unsigned iteration = 0; iteration <= num_iterations; iteration++) {
     double loss = 0.0;
     unsigned num_sentences = 0;
-    KbestList kbest_list(kbest_filename);
-    while (kbest_list.NextSet(hypotheses)) {
+    kbest_list->Reset();
+
+    while (kbest_list->NextSet(hypotheses)) {
       assert (hypotheses.size() > 0);
       num_sentences++;
       cerr << num_sentences << "\r";
@@ -128,8 +136,8 @@ int main(int argc, char** argv) {
     if (dev_filename.length() > 0) {
       dev_score = 0.0;
       unsigned dev_sentences = 0;
-      KbestList dev_kbest(dev_filename);
-      while (dev_kbest.NextSet(hypotheses)) {
+      dev_kbest->Reset();
+      while (dev_kbest->NextSet(hypotheses)) {
         dev_sentences++;
         ComputationGraph cg;
         converter->ConvertKbestSet(hypotheses, hypothesis_features, metric_scores);
@@ -160,6 +168,11 @@ int main(int argc, char** argv) {
     boost::archive::text_oarchive oa(cout);
     oa << converter;
     oa << reranker_model;
+  }
+
+  if (kbest_list = NULL) {
+    delete kbest_list;
+    kbest_list = NULL;
   }
 
   if (converter != NULL) {

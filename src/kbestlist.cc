@@ -1,16 +1,16 @@
 #include "kbestlist.h"
 
-KbestList::KbestList(string filename) {
-  input_file = new ifstream(filename);
-  if (input_file == NULL || !input_file->is_open()) {
-    cerr << "Unable to open kbest file: " << filename << endl;
-    exit(1);
-  }
-  current_sent_id = "";
-  next_hypothesis = NULL;
+KbestList::~KbestList() {}
+
+SimpleKbestList::SimpleKbestList(string filename) : filename(filename) {
+  Reset();
 }
 
-KbestList::~KbestList() {
+SimpleKbestList::~SimpleKbestList() {
+  Cleanup();
+}
+
+void SimpleKbestList::Cleanup() {
   if (input_file != NULL) {
     if (input_file->is_open()) {
       input_file->close();
@@ -22,7 +22,18 @@ KbestList::~KbestList() {
   }
 }
 
-bool KbestList::NextSet(vector<KbestHypothesis>& out) {
+void SimpleKbestList::Reset() {
+  input_file = new ifstream(filename);
+  if (input_file == NULL || !input_file->is_open()) {
+    cerr << "Unable to open kbest file: " << filename << endl;
+    exit(1);
+  }
+  current_sent_id = "";
+  next_hypothesis = NULL;
+
+}
+
+bool SimpleKbestList::NextSet(vector<KbestHypothesis>& out) {
   out.clear();
   if (input_file == NULL) {
     return false;
@@ -57,4 +68,40 @@ bool KbestList::NextSet(vector<KbestHypothesis>& out) {
     input_file = NULL;
   }
   return true;
+}
+
+KbestListInRam::KbestListInRam(string filename) : simple_kbest(filename), done_loading(false) {
+  Reset();
+}
+
+KbestListInRam::~KbestListInRam() {}
+
+bool KbestListInRam::NextSet(vector<KbestHypothesis>& out) {
+  if (it != hypotheses.end()) {
+    assert (it >= hypotheses.begin());
+    assert (it < hypotheses.end());
+    out = *it;
+    it++;
+    return true;
+  }
+
+  if (!done_loading) {
+    vector<KbestHypothesis> temp;
+    if (simple_kbest.NextSet(temp)) {
+      hypotheses.push_back(temp);
+      it = hypotheses.end();
+      out = temp;
+      return true;
+    }
+    else {
+      done_loading = true;
+      return false;
+    }
+  }
+
+  return false;
+}
+
+void KbestListInRam::Reset() {
+  it = hypotheses.begin();
 }

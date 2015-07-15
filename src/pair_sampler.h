@@ -14,7 +14,7 @@ private:
   unsigned samples_per_sentence;
   unsigned samples_taken;
   unsigned failures;
-  KbestList kbest_list;
+  SimpleKbestList kbest_list;
   vector<KbestHypothesis> current_sent_hypotheses;
 };
 
