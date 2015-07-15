@@ -27,7 +27,7 @@ using namespace cnn::expr;
 const unsigned num_iterations = 10000;
 const unsigned max_features = 1000;
 const unsigned hidden_size = 500;
-const bool nonlinear = false;
+const bool nonlinear = true;
 
 bool ctrlc_pressed = false;
 void ctrlc_handler(int signal) {

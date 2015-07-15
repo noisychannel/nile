@@ -106,7 +106,7 @@ std::vector<int> ReadPhrase(const std::vector<std::string> line, Dict* sd) {
   return res;
 }
 
-std::vector<Context> getContexts(std::string t, vector<int> s) {
+std::vector<Context> getContexts(const std::string& t, const vector<int>& s) {
   std::vector<Context> contextSeq;
   //std::vector<std::string> sParts = tokenize(s, " ");
   std::vector<int> sParts = s;
@@ -162,7 +162,7 @@ std::vector<Context> getContexts(std::string t, vector<int> s) {
 }
 
 
-VariableIndex getRNNRuleContext(vector<int>& src, string& tgt,
+VariableIndex getRNNRuleContext(const vector<int>& src, const string& tgt,
   LookupParameters* p_w_source, LookupParameters* p_w_target,
     ComputationGraph& hg, Model& model) {
 

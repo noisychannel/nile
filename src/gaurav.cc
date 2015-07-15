@@ -2,6 +2,7 @@
 #include <iostream>
 #include "gaurav.h"
 #include "utils.h"
+#include "rnn_context_rule.h"
 
 using namespace std;
 
@@ -74,4 +75,9 @@ void GauravsModel::ReadSource(string filename) {
     src_sentences[pieces[0]] = ReadSentence(pieces[1], &src_dict);
   }
   f.close();
+}
+
+Expression GauravsModel::GetRuleContext(const vector<int>& src, const string& tgt, LookupParameters& w_src, LookupParameters& w_tgt, ComputationGraph& cg, Model& cnn_model) {
+  VariableIndex i = getRNNRuleContext(src, tgt, &w_src, &w_tgt, cg, cnn_model);
+  return Expression(&cg, i);
 }

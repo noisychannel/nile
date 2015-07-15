@@ -55,7 +55,7 @@ $(OBJDIR)/pro_gaurav.o: $(SRCDIR)/pro_gaurav.cc $(SRCDIR)/utils.h $(SRCDIR)/rera
 $(OBJDIR)/rerank.o: $(SRCDIR)/rerank.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/pair_sampler.h	
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/rerank.cc -o $(OBJDIR)/rerank.o
 
-$(OBJDIR)/gaurav.o: $(SRCDIR)/gaurav.cc $(SRCDIR)/utils.h $(SRCDIR)/gaurav.h	
+$(OBJDIR)/gaurav.o: $(SRCDIR)/gaurav.cc $(SRCDIR)/utils.h $(SRCDIR)/gaurav.h $(SRCDIR)/rnn_context_rule.h
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/gaurav.cc -o $(OBJDIR)/gaurav.o
 
 $(OBJDIR)/kbest_converter.o: $(SRCDIR)/kbest_converter.cc $(SRCDIR)/kbest_converter.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/utils.h

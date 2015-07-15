@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
   vector<vector<float> > hypothesis_features(hypotheses.size());
   vector<float> metric_scores(hypotheses.size());
 
-  KbestList* kbest_list = new SimpleKbestList(kbest_filename);
+  KbestList* kbest_list = new KbestListInRam(kbest_filename);
   for (unsigned iteration = 0; iteration <= num_iterations; iteration++) {
     double loss = 0.0;
     unsigned num_sentences = 0;

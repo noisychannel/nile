@@ -18,23 +18,17 @@
 using namespace std;
 using namespace cnn;
 
-//Hyperparameters
-unsigned LAYERS = 2;
-//TODO: Figure out embedding dim from the binary vector file
-unsigned EMBEDDING_DIM = 50;
-unsigned HIDDEN_DIM = EMBEDDING_DIM;
-unsigned VOCAB_SIZE_SOURCE = 0;
-unsigned VOCAB_SIZE_TARGET = 0;
+const unsigned LAYERS = 2;
 
 cnn::Dict d;
 cnn::Dict sourceD;
 cnn::Dict targetD;
 
 struct Context {
-  const std::vector<int>& leftContext;
-  const std::vector<int>& rightContext;
-  const std::vector<int>& sourceRule;
-  const std::vector<int>& targetRule;
+  const vector<int>& leftContext;
+  const vector<int>& rightContext;
+  const vector<int>& sourceRule;
+  const vector<int>& targetRule;
 };
 
 struct Params {
@@ -68,12 +62,17 @@ struct RNNContextRule {
   Builder builder_rule_source;
   Builder builder_rule_target;
 
-  explicit RNNContextRule(Model &model, LookupParameters* p_w_s, LookupParameters* p_w_t) :
-    builder_context_left(LAYERS, EMBEDDING_DIM, HIDDEN_DIM, &model),
-    builder_context_right(LAYERS, EMBEDDING_DIM, HIDDEN_DIM, &model),
-    builder_rule_source(LAYERS, EMBEDDING_DIM, HIDDEN_DIM, &model),
-    builder_rule_target(LAYERS, EMBEDDING_DIM, HIDDEN_DIM, &model)
+  explicit RNNContextRule(Model &model, LookupParameters* p_w_s, LookupParameters* p_w_t)
   {
+    const unsigned EMBEDDING_DIM = p_w_s->dim[0];
+    const unsigned HIDDEN_DIM = EMBEDDING_DIM;
+    const unsigned VOCAB_SIZE_SOURCE = p_w_s->values.size();
+    const unsigned VOCAB_SIZE_TARGET = p_w_t->values.size();
+
+    builder_context_left = Builder(LAYERS, EMBEDDING_DIM, HIDDEN_DIM, &model);
+    builder_context_right = Builder(LAYERS, EMBEDDING_DIM, HIDDEN_DIM, &model);
+    builder_rule_source = Builder(LAYERS, EMBEDDING_DIM, HIDDEN_DIM, &model);
+    builder_rule_target = Builder(LAYERS, EMBEDDING_DIM, HIDDEN_DIM, &model);
     //TODO: What is the dimnesionality??
     p_w_source = p_w_s;
     p_w_target = p_w_t;
@@ -91,7 +90,7 @@ struct RNNContextRule {
 
   // This is a general recurrence operation for an RNN over a sequence
   // Reads in a sequence, creates and returns hidden states.
-  std::vector<VariableIndex> Recurrence(const std::vector<int>& sequence, ComputationGraph& hg, Params p, Builder builder);
+  vector<VariableIndex> Recurrence(const vector<int>& sequence, ComputationGraph& hg, Params p, Builder builder);
 
   // For a given context (source rule, target rule, left context and
   // right context, this generates the symbolic graph for the
@@ -109,13 +108,13 @@ struct RNNContextRule {
   // The embeddings are currently simply summed together to get the feature
   // vector for the hypothesis. This may change in the future.
   // TODO (gaurav)
-  VariableIndex BuildRuleSequenceModel(std::vector<struct Context> cSeq, ComputationGraph& hg);
+  VariableIndex BuildRuleSequenceModel(vector<struct Context> cSeq, ComputationGraph& hg);
 };
 
-std::vector<int> ReadPhrase(const std::vector<std::string> line, Dict* sd);
+vector<int> ReadPhrase(const vector<string> line, Dict* sd);
 
-std::vector<Context> getContexts(std::string t, vector<int> s);
+vector<Context> getContexts(const string& t, const vector<int>& s);
 
-VariableIndex getRNNRuleContext(vector<int>& src, string& tgt,
+VariableIndex getRNNRuleContext(const vector<int>& src, const string& tgt,
   LookupParameters* p_w_source, LookupParameters* p_w_target,
     ComputationGraph& hg, Model& model);

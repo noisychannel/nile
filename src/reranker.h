@@ -20,7 +20,8 @@ public:
   void BuildComputationGraph(vector<vector<float> >& features, vector<float>& gold_scores, ComputationGraph& cg);
 
   virtual ~RerankerModel();
-  virtual Expression score(vector<float>* input_features, ComputationGraph& cg) = 0;
+  Expression score(vector<float>* input_features, ComputationGraph& cg);
+  virtual Expression score(Expression h, ComputationGraph& cg) = 0;
 
   Model cnn_model;
 
@@ -40,7 +41,7 @@ class LinearRerankerModel : public RerankerModel {
 public:
   explicit LinearRerankerModel(unsigned num_dimensions);
   void InitializeParameters();
-  Expression score(vector<float>* input_features, ComputationGraph& cg);
+  Expression score(Expression h, ComputationGraph& cg);
 
 private:
   LinearRerankerModel();
@@ -59,7 +60,7 @@ class NonlinearRerankerModel : public RerankerModel {
 public:
   explicit NonlinearRerankerModel(unsigned num_dimensions, unsigned hidden_layer_size);
   void InitializeParameters();
-  Expression score(vector<float>* input_features, ComputationGraph& cg);
+  Expression score(Expression h, ComputationGraph& cg);
 
 private:
   NonlinearRerankerModel(); 

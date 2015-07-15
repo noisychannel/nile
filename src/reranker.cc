@@ -37,6 +37,12 @@ void RerankerModel::BuildComputationGraph(vector<vector<float> >& features, vect
   Expression loss = -ebleu;
 }
 
+Expression RerankerModel::score(vector<float>* input_features, ComputationGraph& cg) {
+  assert (num_dimensions > 0);
+  Expression h = input(cg, {num_dimensions}, input_features);
+  return score(h, cg);
+}
+
 LinearRerankerModel::LinearRerankerModel() : RerankerModel(0) {
 }
 
@@ -49,10 +55,8 @@ void LinearRerankerModel::InitializeParameters() {
   p_w = cnn_model.add_parameters({1, num_dimensions});
 }
 
-Expression LinearRerankerModel::score(vector<float>* input_features, ComputationGraph& cg) {
-  assert (num_dimensions > 0);
+Expression LinearRerankerModel::score(Expression h, ComputationGraph& cg) {
   Expression w = parameter(cg, p_w);
-  Expression h = input(cg, {num_dimensions}, input_features);
   Expression s = w * h;
   return s;
 }
@@ -72,12 +76,10 @@ void NonlinearRerankerModel::InitializeParameters() {
   p_b = cnn_model.add_parameters({hidden_size});
 }
 
-Expression NonlinearRerankerModel::score(vector<float>* input_features, ComputationGraph& cg) {
-  assert (num_dimensions > 0);
+Expression NonlinearRerankerModel::score(Expression h, ComputationGraph& cg) {
   Expression w1 = parameter(cg, p_w1);
   Expression w2 = parameter(cg, p_w2);
   Expression b = parameter(cg, p_b);
-  Expression h = input(cg, {num_dimensions}, input_features);
   Expression g = affine_transform({b, w1, h});
   Expression t = tanh(g);
   Expression s = w2 * t;
