@@ -78,6 +78,8 @@ void GauravsModel::ReadSource(string filename) {
 }
 
 Expression GauravsModel::GetRuleContext(const vector<int>& src, const string& tgt, LookupParameters& w_src, LookupParameters& w_tgt, ComputationGraph& cg, Model& cnn_model) {
-  VariableIndex i = getRNNRuleContext(src, tgt, &w_src, &w_tgt, cg, cnn_model);
-  return Expression(&cg, i);
+  Expression i = getRNNRuleContext(src, tgt, &w_src, &w_tgt, cg, cnn_model);
+  //FIXME: Austim
+  return i;
+  //return Expression(&cg, i);
 }

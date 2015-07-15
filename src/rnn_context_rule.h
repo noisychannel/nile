@@ -20,16 +20,6 @@ using namespace cnn;
 
 const unsigned LAYERS = 2;
 
-cnn::Dict d;
-cnn::Dict sourceD;
-cnn::Dict targetD;
-
-struct Context {
-  const vector<int>& leftContext;
-  const vector<int>& rightContext;
-  const vector<int>& sourceRule;
-  const vector<int>& targetRule;
-};
 
 struct Params {
   LookupParameters* p_w;
@@ -37,10 +27,6 @@ struct Params {
   Parameters* p_bias;
 };
 
-////////// UTIL FUNCTIONS //////////////////
-//
-
-////////////////////////////////////////////
 
 template <class Builder>
 struct RNNContextRule {
@@ -90,7 +76,7 @@ struct RNNContextRule {
 
   // This is a general recurrence operation for an RNN over a sequence
   // Reads in a sequence, creates and returns hidden states.
-  vector<VariableIndex> Recurrence(const vector<int>& sequence, ComputationGraph& hg, Params p, Builder builder);
+  vector<Expression> Recurrence(const vector<int>& sequence, ComputationGraph& hg, Params p, Builder builder);
 
   // For a given context (source rule, target rule, left context and
   // right context, this generates the symbolic graph for the
@@ -99,7 +85,7 @@ struct RNNContextRule {
   // create the "contextual-rule" embedding.
   // This function returns the contextual rule embedding for one context
   // instance.
-  VariableIndex BuildRNNGraph(struct Context c, ComputationGraph& hg);
+  Expression BuildRNNGraph(struct Context c, ComputationGraph& hg);
 
   // Reads a sequence of contexts built for an n-best hypothesis (in association
   // with the source side sentence) and runs the CRNN model to get rule
@@ -108,13 +94,11 @@ struct RNNContextRule {
   // The embeddings are currently simply summed together to get the feature
   // vector for the hypothesis. This may change in the future.
   // TODO (gaurav)
-  VariableIndex BuildRuleSequenceModel(vector<struct Context> cSeq, ComputationGraph& hg);
+  Expression BuildRuleSequenceModel(vector<struct Context> cSeq, ComputationGraph& hg);
 };
 
-vector<int> ReadPhrase(const vector<string> line, Dict* sd);
+//vector<int> ReadPhrase(const vector<string> line, Dict* sd);
 
-vector<Context> getContexts(const string& t, const vector<int>& s);
-
-VariableIndex getRNNRuleContext(const vector<int>& src, const string& tgt,
+Expression getRNNRuleContext(const vector<int>& src, const string& tgt,
   LookupParameters* p_w_source, LookupParameters* p_w_target,
     ComputationGraph& hg, Model& model);
