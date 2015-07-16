@@ -1,11 +1,11 @@
 CC=g++
 #CNN_DIR = /Users/austinma/git/cnn/
-CNN_DIR = /home/austinma/git/cnn
-#CNN_DIR=/export/a04/gkumar/code/cnn/
+#CNN_DIR = /home/austinma/git/cnn
+CNN_DIR=/export/a04/gkumar/code/cnn/
 #CNN_DIR=/Users/gaurav/Projects/cnn/
 #EIGEN = /Users/austinma/git/eigen
-EIGEN = /opt/tools/eigen-dev/
-#EIGEN=/export/a04/gkumar/code/eigen/
+#EIGEN = /opt/tools/eigen-dev/
+EIGEN=/export/a04/gkumar/code/eigen/
 #EIGEN=/Users/gaurav/Projects/eigen/
 CNN_BUILD_DIR=$(CNN_DIR)/build
 INCS=-I$(CNN_DIR) -I$(CNN_BUILD_DIR) -I$(EIGEN)

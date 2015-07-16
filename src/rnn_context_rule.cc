@@ -24,7 +24,7 @@ using namespace cnn;
 // This is a general recurrence operation for an RNN over a sequence
 // Reads in a sequence, creates and returns hidden states.
 template <class Builder>
-vector<Expression> RNNContextRule<Builder>::Recurrence(const vector<int>& sequence, ComputationGraph& hg, Params p, Builder builder) {
+vector<Expression> RNNContextRule<Builder>::Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, Builder builder) {
   const unsigned sequenceLen = sequence.size() - 1;
   vector<Expression> hiddenStates;
   Expression i_R = parameter(hg, p.p_R);
@@ -101,12 +101,13 @@ Expression RNNContextRule<Builder>::BuildRuleSequenceModel(vector<struct Context
   return sum(ruleEmbeddings);
 }
 
-
-Expression getRNNRuleContext(const vector<int>& src, const string& tgt,
-  LookupParameters* p_w_source, LookupParameters* p_w_target,
+Expression getRNN(
+    const vector<unsigned>& src, const vector<unsigned>& tgt,
+    const vector<PhraseAlignmentLink>& links,
+    LookupParameters* p_w_source, LookupParameters* p_w_target,
     ComputationGraph& hg, Model& model) {
 
-  vector<Context> contexts = getContext(tgt, src);
+  vector<Context> contexts = getContext(src, tgt, links);
   RNNContextRule<SimpleRNNBuilder> rnncr(model, p_w_source, p_w_target);
   return rnncr.BuildRuleSequenceModel(contexts, hg);
 }

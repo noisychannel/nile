@@ -1,13 +1,17 @@
 #include<vector>
 #include<string>
 
+#include "kbest_converter.h"
+
 using namespace std;
 
 struct Context {
-  const vector<int>& leftContext;
-  const vector<int>& rightContext;
-  const vector<int>& sourceRule;
-  const vector<int>& targetRule;
+  const vector<unsigned>& leftContext;
+  const vector<unsigned>& rightContext;
+  const vector<unsigned>& sourceRule;
+  const vector<unsigned>& targetRule;
 };
 
-vector<Context> getContext(const string& t, const vector<int>& s);
+vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& tgt,
+                            const vector<PhraseAlignmentLink>& links);
+

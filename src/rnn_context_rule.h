@@ -76,7 +76,7 @@ struct RNNContextRule {
 
   // This is a general recurrence operation for an RNN over a sequence
   // Reads in a sequence, creates and returns hidden states.
-  vector<Expression> Recurrence(const vector<int>& sequence, ComputationGraph& hg, Params p, Builder builder);
+  vector<Expression> Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, Builder builder);
 
   // For a given context (source rule, target rule, left context and
   // right context, this generates the symbolic graph for the
