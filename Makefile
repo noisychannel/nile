@@ -1,18 +1,18 @@
 CC=g++
 #CNN_DIR = /Users/austinma/git/cnn/
-#CNN_DIR = /home/austinma/git/cnn
-CNN_DIR=/export/a04/gkumar/code/cnn/
+CNN_DIR = /home/austinma/git/cnn
+#CNN_DIR=/export/a04/gkumar/code/cnn/
 #CNN_DIR=/Users/gaurav/Projects/cnn/
 #EIGEN = /Users/austinma/git/eigen
-#EIGEN = /opt/tools/eigen-dev/
-EIGEN=/export/a04/gkumar/code/eigen/
+EIGEN = /opt/tools/eigen-dev/
+#EIGEN=/export/a04/gkumar/code/eigen/
 #EIGEN=/Users/gaurav/Projects/eigen/
 CNN_BUILD_DIR=$(CNN_DIR)/build
 INCS=-I$(CNN_DIR) -I$(CNN_BUILD_DIR) -I$(EIGEN)
 LIBS=-L$(CNN_BUILD_DIR)/cnn/
 FINAL=-lcnn -lboost_regex -lboost_serialization
 CFLAGS=-std=c++11 -Ofast -march=native -pipe
-#CFLAGS=-std=c++11 -O0 -g -DDEBUG
+#CFLAGS=-std=c++11 -O0 -g -DDEBUG -pipe
 BINDIR=bin
 OBJDIR=obj
 SRCDIR=src
@@ -52,7 +52,7 @@ $(OBJDIR)/pro.o: $(SRCDIR)/pro.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypothesis.h
 $(OBJDIR)/pro_ebleu.o: $(SRCDIR)/pro_ebleu.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/kbestlist.h $(SRCDIR)/reranker.h
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/pro_ebleu.cc -o $(OBJDIR)/pro_ebleu.o
 
-$(OBJDIR)/pro_gaurav.o: $(SRCDIR)/pro_gaurav.cc $(SRCDIR)/utils.h $(SRCDIR)/reranker.h $(SRCDIR)/rnn_context_rule.h
+$(OBJDIR)/pro_gaurav.o: $(SRCDIR)/pro_gaurav.cc $(SRCDIR)/utils.h $(SRCDIR)/reranker.h $(SRCDIR)/rnn_context_rule.h $(SRCDIR)/gaurav.h
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/pro_gaurav.cc -o $(OBJDIR)/pro_gaurav.o
 
 $(OBJDIR)/rerank.o: $(SRCDIR)/rerank.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/pair_sampler.h	

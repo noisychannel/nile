@@ -1,3 +1,4 @@
+#pragma once
 #include <boost/serialization/map.hpp>
 #include <boost/serialization/string.hpp>
 #include <boost/archive/text_oarchive.hpp>

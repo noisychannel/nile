@@ -27,7 +27,7 @@ using namespace cnn;
 using namespace cnn::expr;
 
 const unsigned max_features = 1000;
-const unsigned num_iterations = 1;
+const unsigned num_iterations = 10;
 const unsigned hidden_size = 500;
 const bool nonlinear = false;
 
@@ -80,6 +80,7 @@ int main(int argc, char** argv) {
   cerr << "Running on " << Eigen::nbThreads() << " threads." << endl;
 
   cnn::Initialize(argc, argv);
+  Model cnn_model;
   KbestConverter* converter = new KbestConverter(kbest_filename, max_features);
 
   RerankerModel* reranker_model = NULL;
@@ -90,7 +91,7 @@ int main(int argc, char** argv) {
     reranker_model = new LinearRerankerModel(converter->num_dimensions);
   }
 
-  GauravsModel gauravs_model (source_filename, source_embedding_filename, target_embedding_filename);
+  GauravsModel gauravs_model (cnn_model, source_filename, source_embedding_filename, target_embedding_filename);
 
   //SimpleSGDTrainer sgd(&reranker_model->cnn_model, 0.0, 10.0);
   AdadeltaTrainer sgd(&reranker_model->cnn_model, 0.0);
@@ -99,8 +100,8 @@ int main(int argc, char** argv) {
 
   cerr << "Training model...\n";
   vector<KbestHypothesis> hypotheses;
-  vector<vector<float> > hypothesis_features(hypotheses.size());
-  vector<float> metric_scores(hypotheses.size());
+  vector<Expression> hypothesis_features;
+  vector<float> metric_scores;;
 
   KbestList* kbest_list = new KbestListInRam(kbest_filename);
   for (unsigned iteration = 0; iteration <= num_iterations; iteration++) {
@@ -112,8 +113,20 @@ int main(int argc, char** argv) {
       num_sentences++;
       cerr << num_sentences << "\r";
 
+      hypothesis_features.clear();
+      metric_scores.clear();
+
       ComputationGraph cg;
-      converter->ConvertKbestSet(hypotheses, hypothesis_features, metric_scores);
+      for (KbestHypothesis& hyp : hypotheses) {
+        vector<string> tgt_words;
+        vector<PhraseAlignmentLink> alignment;
+        converter->ConvertTargetString(hyp, tgt_words, alignment);
+        vector<unsigned> src = gauravs_model.GetSourceSentence(hyp.sentence_id);
+        vector<unsigned> tgt = gauravs_model.ConvertTargetSentence(tgt_words); 
+        Expression hyp_features = gauravs_model.GetRuleContext(src, tgt, alignment, cg, cnn_model);
+        hypothesis_features.push_back(hyp_features);
+        metric_scores.push_back(hyp.metric_score);
+      }
       reranker_model->BuildComputationGraph(hypothesis_features, metric_scores, cg);
 
       loss += as_scalar(cg.forward());

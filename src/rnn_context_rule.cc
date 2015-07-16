@@ -88,6 +88,7 @@ Expression RNNContextRule<Builder>::BuildRNNGraph(struct Context c, ComputationG
 // TODO (gaurav)
 template <class Builder>
 Expression RNNContextRule<Builder>::BuildRuleSequenceModel(vector<struct Context> cSeq, ComputationGraph& hg) {
+  assert (cSeq.size() > 0);
   //TODO; Is this count right ?
   const unsigned cSeqLen = cSeq.size() - 1;
   vector<Expression> ruleEmbeddings;
@@ -98,10 +99,11 @@ Expression RNNContextRule<Builder>::BuildRuleSequenceModel(vector<struct Context
   }
   //TODO: This may be buggy
   //sum(vector)
+  assert (ruleEmbeddings.size() > 0);
   return sum(ruleEmbeddings);
 }
 
-Expression getRNN(
+Expression getRNNRuleContext(
     const vector<unsigned>& src, const vector<unsigned>& tgt,
     const vector<PhraseAlignmentLink>& links,
     LookupParameters* p_w_source, LookupParameters* p_w_target,

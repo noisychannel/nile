@@ -1,4 +1,4 @@
-#pragma warning
+#pragma once
 #include "cnn/nodes.h"
 #include "cnn/cnn.h"
 #include "cnn/training.h"
@@ -99,7 +99,7 @@ struct RNNContextRule {
 
 //vector<int> ReadPhrase(const vector<string> line, Dict* sd);
 
-Expression getRNN(
+Expression getRNNRuleContext(
     const vector<unsigned>& src, const vector<unsigned>& tgt,
     const vector<PhraseAlignmentLink>& links,
     LookupParameters* p_w_source, LookupParameters* p_w_target,

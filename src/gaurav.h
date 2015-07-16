@@ -22,11 +22,13 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
 
 class GauravsModel {
 public:
-  GauravsModel(string src_filename, string src_embedding_filename, string tgt_embedding_filename);
+  GauravsModel(Model& cnn_model, string src_filename, string src_embedding_filename, string tgt_embedding_filename);
   void ReadSource(string filename);
   Expression GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg, Model& cnn_model);
+  vector<unsigned> GetSourceSentence(const string& sent_id);
+  vector<unsigned> ConvertTargetSentence(const vector<string>& words);
 private:
-  unordered_map<string, vector<int> > src_sentences;
+  unordered_map<string, vector<unsigned> > src_sentences;
   LookupParameters* src_embeddings;
   LookupParameters* tgt_embeddings;
   unsigned src_vocab_size;
