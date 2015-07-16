@@ -99,6 +99,8 @@ struct RNNContextRule {
 
 //vector<int> ReadPhrase(const vector<string> line, Dict* sd);
 
-Expression getRNNRuleContext(const vector<int>& src, const string& tgt,
-  LookupParameters* p_w_source, LookupParameters* p_w_target,
+Expression getRNN(
+    const vector<unsigned>& src, const vector<unsigned>& tgt,
+    const vector<PhraseAlignmentLink>& links,
+    LookupParameters* p_w_source, LookupParameters* p_w_target,
     ComputationGraph& hg, Model& model);
