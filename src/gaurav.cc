@@ -57,13 +57,21 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
 
 GauravsModel::GauravsModel(string src_filename, string src_embedding_filename, string tgt_embedding_filename) {
   unordered_map<string, unsigned> tmp_src_dict, tmp_tgt_dict;
-  src_embeddings = LoadEmbeddings(src_embedding_filename, tmp_src_dict);
-  tgt_embeddings = LoadEmbeddings(tgt_embedding_filename, tmp_tgt_dict);
+  unordered_map<unsigned, vector<float> > src_embedding_dict = LoadEmbeddings(src_embedding_filename, tmp_src_dict);
+  unordered_map<unsigned, vector<float> > tgt_embedding_dict = LoadEmbeddings(tgt_embedding_filename, tmp_tgt_dict);
+
+  for(unsigned i = 0; i < src_embedding_dict.size(); ++i) {
+    src_embeddings->Initialize(i, src_embedding_dict[i]);
+  }
+
+  for(unsigned i = 0; i < tgt_dict.size(); ++i) {
+    tgt_embeddings->Initialize(i, tgt_embedding_dict[i]);
+  }
 
   ReadSource(src_filename);
 
-  src_vocab_size = src_embeddings.size();
-  tgt_vocab_size = tgt_embeddings.size();
+  src_vocab_size = src_embeddings->size();
+  tgt_vocab_size = tgt_embeddings->size();
 }
 
 void GauravsModel::ReadSource(string filename) {
@@ -77,9 +85,6 @@ void GauravsModel::ReadSource(string filename) {
   f.close();
 }
 
-Expression GauravsModel::GetRuleContext(const vector<int>& src, const string& tgt, LookupParameters& w_src, LookupParameters& w_tgt, ComputationGraph& cg, Model& cnn_model) {
-  Expression i = getRNNRuleContext(src, tgt, &w_src, &w_tgt, cg, cnn_model);
-  //FIXME: Austim
-  return i;
-  //return Expression(&cg, i);
+Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg, Model& cnn_model) {
+  return getRNNRuleContext(src, tgt, alignment, src_embeddings, tgt_embeddings, cg, cnn_model);
 }

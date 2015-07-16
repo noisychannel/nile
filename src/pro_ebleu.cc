@@ -24,7 +24,7 @@ using namespace std;
 using namespace cnn;
 using namespace cnn::expr;
 
-const unsigned num_iterations = 10000;
+const unsigned num_iterations = 1000;
 const unsigned max_features = 1000;
 const unsigned hidden_size = 500;
 const bool nonlinear = true;
