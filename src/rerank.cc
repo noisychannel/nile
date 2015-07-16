@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
   vector<float> metric_scores(hypotheses.size()); //unused
 
   unsigned num_sentences = 0;
-  KbestList* kbest_list = new SimpleKbestList(kbest_filename);
+  KbestList* kbest_list = new KbestListInRam(kbest_filename);
   while (kbest_list->NextSet(hypotheses)) {
     assert (hypotheses.size() > 0);
     num_sentences++;
