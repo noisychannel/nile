@@ -9,10 +9,19 @@
 
 #include "kbest_hypothesis.h"
 
+struct PhraseAlignmentLink {
+  unsigned src_start;
+  unsigned src_end;
+  unsigned tgt_start;
+  unsigned tgt_end;
+};
+
 class KbestConverter {
 public:
   KbestConverter(string kbest_filename);
   KbestConverter(string kbest_filename, unsigned max_features);
+  static void ConvertTargetString(KbestHypothesis& hypothesis, vector<string>& target_words);
+  static void ConvertTargetString(KbestHypothesis& hypothesis, vector<string>& target_words, vector<PhraseAlignmentLink>& phrase_alignment);
   void ConvertFeatureVector(KbestHypothesis& hypothesis, vector<float>& out);
   void ConvertKbestSet(vector<KbestHypothesis>& hyps, vector<vector<float> >& features, vector<float>& scores);
   unsigned num_dimensions;

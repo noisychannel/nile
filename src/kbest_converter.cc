@@ -3,6 +3,7 @@
 #include <climits>
 #include <fstream>
 #include <unordered_set>
+#include <regex>
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
@@ -63,6 +64,40 @@ void KbestConverter::ReadFeatureNames(string kbest_filename, unsigned max_featur
     feat2id[name] = feat_map_index;
     id2feat[feat_map_index] = name;
     feat_map_index++;
+  }
+}
+
+void KbestConverter::ConvertTargetString(KbestHypothesis& hypothesis, vector<string>& target_words) {
+  vector<PhraseAlignmentLink> phrase_alignment;
+  ConvertTargetString(hypothesis, target_words, phrase_alignment);
+}
+
+void KbestConverter::ConvertTargetString(KbestHypothesis& hypothesis, vector<string>& target_words, vector<PhraseAlignmentLink>& phrase_alignment) {
+  vector<string> tParts = tokenize(hypothesis.sentence, " ");
+  tParts = strip(tParts);
+
+  smatch sm;
+  regex r("\\|(\\d+)-(\\d+)\\|");
+  unsigned last_fucker = 0;
+  for (auto i = tParts.begin(); i != tParts.end(); ++i) {
+    if (regex_match(*i, sm, r)) {
+      // Match found : this is alignment information
+      assert(sm.size() == 3);
+      string tmpFrom = sm[1];
+      string tmpTo = sm[2];
+      unsigned srcFrom = atoi(tmpFrom.c_str());
+      // Add one to convert Moses's inclusive format to exclusive format
+      unsigned srcTo = atoi(tmpTo.c_str()) + 1;
+      unsigned tgtFrom = last_fucker;
+      unsigned tgtTo = target_words.size();
+      phrase_alignment.push_back({srcFrom, srcTo, tgtFrom, tgtTo});
+      last_fucker = tgtTo;
+    }
+    else {
+      // Target tokens
+      // Accumulate these till we see alignment info
+      target_words.push_back(*i);
+    }
   }
 }
 

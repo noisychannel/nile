@@ -1,24 +1,24 @@
 CC=g++
 #CNN_DIR = /Users/austinma/git/cnn/
-#CNN_DIR = /home/austinma/git/cnn
-CNN_DIR=/export/a04/gkumar/code/cnn/
+CNN_DIR = /home/austinma/git/cnn
+#CNN_DIR=/export/a04/gkumar/code/cnn/
 #CNN_DIR=/Users/gaurav/Projects/cnn/
 #EIGEN = /Users/austinma/git/eigen
-#EIGEN = /opt/tools/eigen-dev/
-EIGEN=/export/a04/gkumar/code/eigen/
+EIGEN = /opt/tools/eigen-dev/
+#EIGEN=/export/a04/gkumar/code/eigen/
 #EIGEN=/Users/gaurav/Projects/eigen/
 CNN_BUILD_DIR=$(CNN_DIR)/build
 INCS=-I$(CNN_DIR) -I$(CNN_BUILD_DIR) -I$(EIGEN)
 LIBS=-L$(CNN_BUILD_DIR)/cnn/
 FINAL=-lcnn -lboost_regex -lboost_serialization
-CFLAGS=-std=c++11 -O3 -ffast-math -funroll-loops
+CFLAGS=-std=c++11 -Ofast -march=native -pipe
 #CFLAGS=-std=c++11 -O0 -g -DDEBUG
 BINDIR=bin
 OBJDIR=obj
 SRCDIR=src
 
 .PHONY: clean
-all: make_dirs $(BINDIR)/pro $(BINDIR)/rerank $(BINDIR)/pro_ebleu $(BINDIR)/pro_gaurav
+all: make_dirs $(BINDIR)/pro $(BINDIR)/rerank $(BINDIR)/pro_ebleu $(BINDIR)/pro_gaurav $(BINDIR)/sandbox
 
 make_dirs:
 	mkdir -p $(OBJDIR)
@@ -64,6 +64,9 @@ $(OBJDIR)/gaurav.o: $(SRCDIR)/gaurav.cc $(SRCDIR)/utils.h $(SRCDIR)/gaurav.h
 $(OBJDIR)/kbest_converter.o: $(SRCDIR)/kbest_converter.cc $(SRCDIR)/kbest_converter.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/utils.h
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/kbest_converter.cc -o $(OBJDIR)/kbest_converter.o
 
+$(OBJDIR)/sandbox.o: $(SRCDIR)/sandbox.cc $(SRCDIR)/kbest_converter.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/utils.h
+	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/sandbox.cc -o $(OBJDIR)/sandbox.o
+
 $(BINDIR)/pro: $(OBJDIR)/pro.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/utils.o $(OBJDIR)/kbestlist.o	
 	g++ $(LIBS) $(OBJDIR)/pro.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/utils.o $(OBJDIR)/kbestlist.o -o $(BINDIR)/pro $(FINAL)
 
@@ -75,3 +78,6 @@ $(BINDIR)/pro_gaurav: $(OBJDIR)/pro_gaurav.o $(OBJDIR)/gaurav.o $(OBJDIR)/utils.
 
 $(BINDIR)/rerank: $(OBJDIR)/rerank.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o $(OBJDIR)/reranker.o $(OBJDIR)/kbest_converter.o
 	g++ $(LIBS) $(OBJDIR)/rerank.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o $(OBJDIR)/reranker.o $(OBJDIR)/kbest_converter.o -o $(BINDIR)/rerank $(FINAL)
+
+$(BINDIR)/sandbox: $(OBJDIR)/sandbox.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbest_converter.o $(OBJDIR)/utils.o
+	g++ $(LIBS) $(OBJDIR)/sandbox.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbest_converter.o $(OBJDIR)/utils.o -o $(BINDIR)/sandbox $(FINAL)
