@@ -35,8 +35,8 @@ for line in corpus:
 
 # Prune the vocab
 vocab = sorted(vocab.items(), key=lambda x: x[1], reverse=True)
-prunedVocab = [x[0] for x in vocab if x[1] > opts.prune]
-oovCands = set([x[0] for x in vocab if x[1] <= opts.prune])
+prunedVocab = [x[0] for x in vocab if x[1] >= opts.prune]
+oovCands = set([x[0] for x in vocab if x[1] < opts.prune])
 
 corpus.seek(0)
 
