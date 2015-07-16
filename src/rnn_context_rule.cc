@@ -109,6 +109,7 @@ Expression getRNNRuleContext(
     LookupParameters* p_w_source, LookupParameters* p_w_target,
     ComputationGraph& hg, Model& model) {
 
+  assert (links.size() > 0);
   vector<Context> contexts = getContext(src, tgt, links);
   RNNContextRule<SimpleRNNBuilder> rnncr(model, p_w_source, p_w_target);
   return rnncr.BuildRuleSequenceModel(contexts, hg);

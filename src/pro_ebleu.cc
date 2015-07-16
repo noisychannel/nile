@@ -170,7 +170,7 @@ int main(int argc, char** argv) {
     oa << reranker_model;
   }
 
-  if (kbest_list = NULL) {
+  if (kbest_list == NULL) {
     delete kbest_list;
     kbest_list = NULL;
   }

@@ -33,8 +33,8 @@ vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& 
     }
 
     // Iterate over target
-    for ( auto tgt_it = src.begin() + currentSrcSpan.tgt_start;
-          tgt_it != src.begin() + currentSrcSpan.tgt_end; ++tgt_it) {
+    for ( auto tgt_it = tgt.begin() + currentSrcSpan.tgt_start;
+          tgt_it != tgt.begin() + currentSrcSpan.tgt_end; ++tgt_it) {
       targetPhrase.push_back(*tgt_it);
     }
 
