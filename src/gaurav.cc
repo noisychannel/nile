@@ -59,8 +59,6 @@ GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_emb
   unordered_map<string, unsigned> tmp_src_dict, tmp_tgt_dict;
   unordered_map<unsigned, vector<float> > src_embedding_dict = LoadEmbeddings(src_embedding_filename, tmp_src_dict);
   unordered_map<unsigned, vector<float> > tgt_embedding_dict = LoadEmbeddings(tgt_embedding_filename, tmp_tgt_dict);
-  cerr << "source embeddings contain " << src_embedding_dict.size() << " words with dimensionality " << src_embedding_dict.begin()->second.size() << "." << endl;
-  cerr << "target embeddings contain " << tgt_embedding_dict.size() << " words with dimensionality " << tgt_embedding_dict.begin()->second.size() << "." << endl;
   assert (src_embedding_dict.size() > 0);
   assert (tgt_embedding_dict.size() > 0);
   assert (src_embedding_dict.begin()->second.size() > 0);
@@ -70,6 +68,9 @@ GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_emb
   src_vocab_size = src_embedding_dict.size();
   tgt_vocab_size = tgt_embedding_dict.size();
 
+  BuildDictionary(tmp_src_dict, src_dict);
+  BuildDictionary(tmp_tgt_dict, tgt_dict);
+
   src_embeddings = cnn_model.add_lookup_parameters(src_vocab_size, {embedding_dimensions});
   tgt_embeddings = cnn_model.add_lookup_parameters(tgt_vocab_size, {embedding_dimensions});
 
@@ -77,26 +78,35 @@ GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_emb
     src_embeddings->Initialize(i, src_embedding_dict[i]);
   }
 
-  for(unsigned i = 0; i < tgt_dict.size(); ++i) {
+  for(unsigned i = 0; i < tgt_embedding_dict.size(); ++i) {
     tgt_embeddings->Initialize(i, tgt_embedding_dict[i]);
   }
 
   ReadSource(src_filename);
 }
 
+void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out) {
+  unsigned vocab_size = in.size();
+  vector<string> vocab_vec(vocab_size);
+  for (auto& it : in) {
+    unsigned id = it.second;
+    string s = it.first;
+    vocab_vec[id] = s;
+  }
+  for (unsigned i = 0; i < vocab_size; ++i) {
+    assert (out.size() == i);
+    out.Convert(vocab_vec[i]);
+  }
+}
+
 void GauravsModel::ReadSource(string filename) {
   ifstream f(filename);
   for (string line; getline(f, line);) {
     vector<string> pieces = tokenize(line, "|||");
+    pieces = strip(pieces);
     assert (pieces.size() == 2);
     assert (src_sentences.find(pieces[0]) == src_sentences.end());
-    vector<int> temp = ReadSentence(pieces[1], &src_dict);
-    vector<unsigned> utemp(temp.size());
-    for (unsigned i = 0; i < temp.size(); ++i) {
-      assert (temp[i] >= 0);
-      utemp[i] = (unsigned)temp[i];
-    }
-    src_sentences[pieces[0]] = utemp;
+    src_sentences[pieces[0]] = ConvertSourceSentence(pieces[1]);
   }
   f.close();
 }
@@ -106,14 +116,39 @@ Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vecto
   return getRNNRuleContext(src, tgt, alignment, src_embeddings, tgt_embeddings, cg, cnn_model);
 }
 
+vector<unsigned> GauravsModel::ConvertSourceSentence(const string& sentence) {
+  vector<string> words = tokenize(sentence, " ");
+  return ConvertSourceSentence(words);
+}
+
+vector<unsigned> GauravsModel::ConvertSourceSentence(const vector<string>& words) {
+  return ConvertSentence(words, src_dict);
+}
+
+vector<unsigned> GauravsModel::ConvertTargetSentence(const string& sentence) {
+  vector<string> words = tokenize(sentence, " ");
+  return ConvertTargetSentence(words);
+}
+
 vector<unsigned> GauravsModel::ConvertTargetSentence(const vector<string>& words) {
-  vector<unsigned> r (words.size());
+  return ConvertSentence(words, tgt_dict);
+}
+
+vector<unsigned> GauravsModel::ConvertSentence(const vector<string>& words, Dict& dict) {
+  vector<unsigned> r(words.size());
   for (unsigned i = 0; i < words.size(); ++i) {
-    r[i] = tgt_dict.Convert(words[i]);
+    if (dict.Contains(words[i])) {
+      r[i] = dict.Convert(words[i]);
+    }
+    else {
+      assert (dict.Contains(kUnk));
+      r[i] = dict.Convert(kUnk);
+    }
   }
   return r;
 }
 
 vector<unsigned> GauravsModel::GetSourceSentence(const string& sent_id) {
+   assert (src_sentences.find(sent_id) != src_sentences.end());
   return src_sentences[sent_id];
 }

@@ -31,6 +31,7 @@ vector<Expression> RNNContextRule<Builder>::Recurrence(const vector<unsigned>& s
   Expression i_R = parameter(hg, p.p_R);
   Expression i_bias = parameter(hg, p.p_bias);
   for (unsigned t = 0; t < sequenceLen; ++t) {
+    assert (t < sequence.size());
     cerr << t << " " << sequence[t] << endl;
     // Get the embedding for the current input token
     Expression i_x_t = lookup(hg, p.p_w, sequence[t]);

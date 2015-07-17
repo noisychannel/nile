@@ -26,8 +26,13 @@ public:
   void ReadSource(string filename);
   Expression GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg, Model& cnn_model);
   vector<unsigned> GetSourceSentence(const string& sent_id);
+  vector<unsigned> ConvertSourceSentence(const string& words);
+  vector<unsigned> ConvertSourceSentence(const vector<string>& words);
+  vector<unsigned> ConvertTargetSentence(const string& words);
   vector<unsigned> ConvertTargetSentence(const vector<string>& words);
+  vector<unsigned> ConvertSentence(const vector<string>& words, Dict& dict);
 private:
+  void BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out);
   unordered_map<string, vector<unsigned> > src_sentences;
   LookupParameters* src_embeddings;
   LookupParameters* tgt_embeddings;
@@ -35,5 +40,5 @@ private:
   unsigned tgt_vocab_size;
   Dict src_dict;
   Dict tgt_dict;
-  const string kUNK = "";
+  const string kUnk = "<unk>";
 };
