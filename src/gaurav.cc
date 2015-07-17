@@ -65,11 +65,16 @@ GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_emb
   assert (src_embedding_dict.begin()->second.size() == tgt_embedding_dict.begin()->second.size());
 
   unsigned embedding_dimensions = src_embedding_dict.begin()->second.size();
-  src_vocab_size = src_embedding_dict.size();
-  tgt_vocab_size = tgt_embedding_dict.size();
+  src_vocab_size = src_embedding_dict.size() + 1; // XXX: Hack: +1 for <s>, which isn't usually included in the src vocabulary
+  tgt_vocab_size = tgt_embedding_dict.size() + 1;
 
   BuildDictionary(tmp_src_dict, src_dict);
   BuildDictionary(tmp_tgt_dict, tgt_dict);
+
+  src_dict.Convert("<s>");
+  tgt_dict.Convert("<s>");
+  src_dict.Freeze();
+  tgt_dict.Freeze();
 
   src_embeddings = cnn_model.add_lookup_parameters(src_vocab_size, {embedding_dimensions});
   tgt_embeddings = cnn_model.add_lookup_parameters(tgt_vocab_size, {embedding_dimensions});
@@ -97,7 +102,7 @@ void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Di
     assert (out.size() == i);
     out.Convert(vocab_vec[i]);
   }
-  out.Freeze();
+  //out.Freeze();
 }
 
 void GauravsModel::ReadSource(string filename) {
