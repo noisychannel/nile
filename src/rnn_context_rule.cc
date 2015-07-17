@@ -25,6 +25,7 @@ using namespace cnn;
 // Reads in a sequence, creates and returns hidden states.
 template <class Builder>
 vector<Expression> RNNContextRule<Builder>::Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, Builder builder) {
+  assert (sequence.size() > 0);
   const unsigned sequenceLen = sequence.size() - 1;
   vector<Expression> hiddenStates;
   Expression i_R = parameter(hg, p.p_R);
