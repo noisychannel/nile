@@ -49,10 +49,10 @@ struct RNNContextRule {
   Builder builder_rule_source;
   Builder builder_rule_target;
 
-  explicit RNNContextRule(Model &model, LookupParameters* p_w_s, LookupParameters* p_w_t)
+  explicit RNNContextRule(Model &model, LookupParameters* p_w_s, LookupParameters* p_w_t, unsigned hidden_size)
   {
     const unsigned EMBEDDING_DIM = p_w_s->dim[0];
-    const unsigned HIDDEN_DIM = EMBEDDING_DIM;
+    const unsigned HIDDEN_DIM = hidden_size;
     const unsigned VOCAB_SIZE_SOURCE = p_w_s->values.size();
     const unsigned VOCAB_SIZE_TARGET = p_w_t->values.size();
 
@@ -65,14 +65,22 @@ struct RNNContextRule {
     p_w_target = p_w_t;
     //p_w_source = model.add_lookup_parameters(VOCAB_SIZE_SOURCE, {EMBEDDING_DIM});
     //p_w_target = model.add_lookup_parameters(VOCAB_SIZE_TARGET, {EMBEDDING_DIM});
-    p_R_cl = model.add_parameters({VOCAB_SIZE_SOURCE, HIDDEN_DIM});
-    p_bias_cl = model.add_parameters({VOCAB_SIZE_SOURCE});
-    p_R_cr = model.add_parameters({VOCAB_SIZE_SOURCE, HIDDEN_DIM});
-    p_bias_cr = model.add_parameters({VOCAB_SIZE_SOURCE});
-    p_R_rs = model.add_parameters({VOCAB_SIZE_SOURCE, HIDDEN_DIM});
-    p_bias_rs = model.add_parameters({VOCAB_SIZE_SOURCE});
-    p_R_rt = model.add_parameters({VOCAB_SIZE_TARGET, HIDDEN_DIM});
-    p_bias_rt = model.add_parameters({VOCAB_SIZE_TARGET});
+    //p_R_cl = model.add_parameters({VOCAB_SIZE_SOURCE, HIDDEN_DIM});
+    //p_bias_cl = model.add_parameters({VOCAB_SIZE_SOURCE});
+    //p_R_cr = model.add_parameters({VOCAB_SIZE_SOURCE, HIDDEN_DIM});
+    //p_bias_cr = model.add_parameters({VOCAB_SIZE_SOURCE});
+    //p_R_rs = model.add_parameters({VOCAB_SIZE_SOURCE, HIDDEN_DIM});
+    //p_bias_rs = model.add_parameters({VOCAB_SIZE_SOURCE});
+    //p_R_rt = model.add_parameters({VOCAB_SIZE_TARGET, HIDDEN_DIM});
+    //p_bias_rt = model.add_parameters({VOCAB_SIZE_TARGET});
+    p_R_cl = model.add_parameters({HIDDEN_DIM, HIDDEN_DIM});
+    p_bias_cl = model.add_parameters({HIDDEN_DIM});
+    p_R_cr = model.add_parameters({HIDDEN_DIM, HIDDEN_DIM});
+    p_bias_cr = model.add_parameters({HIDDEN_DIM});
+    p_R_rs = model.add_parameters({HIDDEN_DIM, HIDDEN_DIM});
+    p_bias_rs = model.add_parameters({HIDDEN_DIM});
+    p_R_rt = model.add_parameters({HIDDEN_DIM, HIDDEN_DIM});
+    p_bias_rt = model.add_parameters({HIDDEN_DIM});
   }
 
   // This is a general recurrence operation for an RNN over a sequence

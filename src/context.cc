@@ -15,7 +15,7 @@ vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& 
     vector<unsigned> rightContext;
     vector<unsigned> sourcePhrase;
     vector<unsigned> targetPhrase;
-    cerr << "(" << currentSrcSpan.src_start << "," << currentSrcSpan.src_end << ") (" << currentSrcSpan.tgt_start << "," << currentSrcSpan.tgt_end << ")" << endl;
+    //cerr << "(" << currentSrcSpan.src_start << "," << currentSrcSpan.src_end << ") (" << currentSrcSpan.tgt_start << "," << currentSrcSpan.tgt_end << ")" << endl;
     for (unsigned src_id = 0; src_id < src.size(); ++src_id) {
       if (src_id < currentSrcSpan.src_start) {
         //Generating left context
@@ -37,7 +37,7 @@ vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& 
       targetPhrase.push_back(*tgt_it);
     }
 
-    cerr << " ******** " << endl;
+    //cerr << " ******** " << endl;
     Context curContext = {leftContext, rightContext, sourcePhrase, targetPhrase};
     contextSeq.push_back(curContext);
     assert (curContext.leftContext.size() == contextSeq.back().leftContext.size());

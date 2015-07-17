@@ -95,7 +95,6 @@ template <class Builder>
 Expression RNNContextRule<Builder>::BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg) {
   assert (cSeq.size() > 0);
   //TODO; Is this count right ?
-  const unsigned cSeqLen = cSeq.size() - 1;
   vector<Expression> ruleEmbeddings;
   for (unsigned i = 0; i < cSeq.size(); ++i) {
     const Context& currentContext = cSeq[i];
@@ -103,6 +102,7 @@ Expression RNNContextRule<Builder>::BuildRuleSequenceModel(const vector<Context>
     ruleEmbeddings.push_back(currentEmbedding);
   }
   assert (ruleEmbeddings.size() > 0);
+  assert (ruleEmbeddings.size() == cSeq.size());
   return sum(ruleEmbeddings);
 }
 
@@ -110,13 +110,14 @@ Expression getRNNRuleContext(
     const vector<unsigned>& src, const vector<unsigned>& tgt,
     const vector<PhraseAlignmentLink>& links,
     LookupParameters* p_w_source, LookupParameters* p_w_target,
+    unsigned hidden_size,
     ComputationGraph& hg, Model& model) {
 
   assert (links.size() > 0);
   assert (src.size() > 0);
   assert (tgt.size() > 0);
   vector<Context> contexts = getContext(src, tgt, links);
-  RNNContextRule<SimpleRNNBuilder> rnncr(model, p_w_source, p_w_target);
+  RNNContextRule<SimpleRNNBuilder> rnncr(model, p_w_source, p_w_target, hidden_size);
 
   return rnncr.BuildRuleSequenceModel(contexts, hg);
 }
