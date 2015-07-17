@@ -133,7 +133,7 @@ Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vecto
     link.tgt_end++;
   }
 
-  return getRNNRuleContext(src2, tgt2, alignment2, src_embeddings, tgt_embeddings, cg, cnn_model);
+  return getRNNRuleContext(src2, tgt2, alignment2, src_embeddings, tgt_embeddings, hidden_size, cg, cnn_model);
 }
 
 vector<unsigned> GauravsModel::ConvertSourceSentence(const string& sentence) {
@@ -171,4 +171,8 @@ vector<unsigned> GauravsModel::ConvertSentence(const vector<string>& words, Dict
 vector<unsigned> GauravsModel::GetSourceSentence(const string& sent_id) {
    assert (src_sentences.find(sent_id) != src_sentences.end());
   return src_sentences[sent_id];
+}
+
+unsigned GauravsModel::OutputDimension() const {
+  return hidden_size;
 }

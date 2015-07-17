@@ -83,15 +83,15 @@ int main(int argc, char** argv) {
   Model cnn_model;
   KbestConverter* converter = new KbestConverter(kbest_filename, max_features);
 
+  GauravsModel gauravs_model (cnn_model, source_filename, source_embedding_filename, target_embedding_filename);
+
   RerankerModel* reranker_model = NULL;
   if (nonlinear) {
-    reranker_model = new NonlinearRerankerModel(converter->num_dimensions, hidden_size);
+    reranker_model = new NonlinearRerankerModel(gauravs_model.OutputDimension(), hidden_size);
   }
   else {
-    reranker_model = new LinearRerankerModel(converter->num_dimensions);
-  }
-
-  GauravsModel gauravs_model (cnn_model, source_filename, source_embedding_filename, target_embedding_filename);
+    reranker_model = new LinearRerankerModel(gauravs_model.OutputDimension());
+  } 
 
   //SimpleSGDTrainer sgd(&reranker_model->cnn_model, 0.0, 10.0);
   AdadeltaTrainer sgd(&reranker_model->cnn_model, 0.0);

@@ -31,6 +31,7 @@ public:
   vector<unsigned> ConvertTargetSentence(const string& words);
   vector<unsigned> ConvertTargetSentence(const vector<string>& words);
   vector<unsigned> ConvertSentence(const vector<string>& words, Dict& dict);
+  unsigned OutputDimension() const;
 private:
   void BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out);
   unordered_map<string, vector<unsigned> > src_sentences;
@@ -41,4 +42,5 @@ private:
   Dict src_dict;
   Dict tgt_dict;
   const string kUnk = "<unk>";
+  const unsigned hidden_size = 71;
 };
