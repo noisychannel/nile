@@ -15,21 +15,26 @@ vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& 
     vector<unsigned> rightContext;
     vector<unsigned> sourcePhrase;
     vector<unsigned> targetPhrase;
-    unsigned srcId = 0;
-    for ( auto src_it = src.begin(); src_it != src.end(); ++src_it ) {
-      if (srcId < currentSrcSpan.src_start) {
+    cerr << "Got source of length " << src.size() << endl;
+    cerr << "Got target of length " << tgt.size() << endl;
+    cerr << "(" << currentSrcSpan.src_start << "," << currentSrcSpan.src_end << ") (" << currentSrcSpan.tgt_start << "," << currentSrcSpan.tgt_end << ")" << endl;
+    for (unsigned src_id = 0; src_id < src.size(); ++src_id) {
+      if (src_id < currentSrcSpan.src_start) {
+        cerr << "Left" << endl;
         //Generating left context
-        leftContext.push_back(*src_it);
+        leftContext.push_back(src[src_id]);
       }
-      else if (srcId >= currentSrcSpan.src_start && srcId < currentSrcSpan.src_end) {
+      else if (src_id >= currentSrcSpan.src_start && src_id < currentSrcSpan.src_end) {
+        cerr << "Phrase" << endl;
         // Generating source phrase
-        sourcePhrase.push_back(*src_it);
+        sourcePhrase.push_back(src[src_id]);
       }
       else {
+        cerr << "Right" << endl;
         // Generating right context
-        rightContext.push_back(*src_it);
+        rightContext.push_back(src[src_id]);
       }
-      ++srcId;
+      cerr << src_id << endl;
     }
 
     // Iterate over target
@@ -38,6 +43,11 @@ vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& 
       targetPhrase.push_back(*tgt_it);
     }
 
+    cerr << leftContext.size() << endl;
+    cerr << rightContext.size() << endl;
+    cerr << sourcePhrase.size() << endl;
+    cerr << targetPhrase.size() << endl;
+    cerr << " ******** " << endl;
     Context curContext = {leftContext, rightContext, sourcePhrase, targetPhrase};
     contextSeq.push_back(curContext);
   }

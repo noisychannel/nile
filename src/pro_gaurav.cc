@@ -123,6 +123,8 @@ int main(int argc, char** argv) {
         converter->ConvertTargetString(hyp, tgt_words, alignment);
         vector<unsigned> src = gauravs_model.GetSourceSentence(hyp.sentence_id);
         vector<unsigned> tgt = gauravs_model.ConvertTargetSentence(tgt_words); 
+        assert(src.size() > 0);
+        assert(tgt.size() > 0);
         Expression hyp_features = gauravs_model.GetRuleContext(src, tgt, alignment, cg, cnn_model);
         hypothesis_features.push_back(hyp_features);
         metric_scores.push_back(hyp.metric_score);

@@ -102,6 +102,7 @@ void GauravsModel::ReadSource(string filename) {
 }
 
 Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg, Model& cnn_model) {
+  assert(src.size() > 0);
   return getRNNRuleContext(src, tgt, alignment, src_embeddings, tgt_embeddings, cg, cnn_model);
 }
 

@@ -31,6 +31,7 @@ vector<Expression> RNNContextRule<Builder>::Recurrence(const vector<unsigned>& s
   Expression i_R = parameter(hg, p.p_R);
   Expression i_bias = parameter(hg, p.p_bias);
   for (unsigned t = 0; t < sequenceLen; ++t) {
+    cerr << t << " " << sequence[t] << endl;
     // Get the embedding for the current input token
     Expression i_x_t = lookup(hg, p.p_w, sequence[t]);
     // y_t = RNN(x_t)
@@ -40,6 +41,7 @@ vector<Expression> RNNContextRule<Builder>::Recurrence(const vector<unsigned>& s
     Expression i_h_t = tanh(i_r_t);
     hiddenStates.push_back(i_h_t);
   }
+  abort();
   return hiddenStates;
 }
 
@@ -64,6 +66,11 @@ Expression RNNContextRule<Builder>::BuildRNNGraph(struct Context c, ComputationG
   builder_rule_target.start_new_sequence();
   vector<Expression> convVector;
   // Create the symbolic graph for the unrolled recurrent network
+  cerr << c.leftContext.size() << endl;
+  cerr << c.rightContext.size() << endl;
+  cerr << c.sourceRule.size() << endl;
+  cerr << c.targetRule.size() << endl;
+  abort();
   vector<Expression> hiddens_cl = Recurrence(c.leftContext, hg,
                               {p_w_source, p_R_cl, p_bias_cl}, builder_context_left);
   vector<Expression> hiddens_cr = Recurrence(c.rightContext, hg,
@@ -95,6 +102,11 @@ Expression RNNContextRule<Builder>::BuildRuleSequenceModel(vector<struct Context
   vector<Expression> ruleEmbeddings;
   for( vector<struct Context>::const_iterator i = cSeq.begin(); i != cSeq.end(); ++i) {
     Context currentContext = *i;
+    //cerr << currentContext.leftContext.size() << endl;
+    //cerr << currentContext.rightContext.size() << endl;
+    //cerr << currentContext.sourceRule.size() << endl;
+    //cerr << currentContext.targetRule.size() << endl;
+    //cerr << " ---- " << endl;
     Expression currentEmbedding = BuildRNNGraph(currentContext, hg);
     ruleEmbeddings.push_back(currentEmbedding);
   }
@@ -111,6 +123,8 @@ Expression getRNNRuleContext(
     ComputationGraph& hg, Model& model) {
 
   assert (links.size() > 0);
+  assert (src.size() > 0);
+  assert (tgt.size() > 0);
   vector<Context> contexts = getContext(src, tgt, links);
   RNNContextRule<SimpleRNNBuilder> rnncr(model, p_w_source, p_w_target);
   return rnncr.BuildRuleSequenceModel(contexts, hg);
