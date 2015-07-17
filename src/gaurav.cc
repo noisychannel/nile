@@ -97,6 +97,7 @@ void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Di
     assert (out.size() == i);
     out.Convert(vocab_vec[i]);
   }
+  out.Freeze();
 }
 
 void GauravsModel::ReadSource(string filename) {
@@ -113,6 +114,19 @@ void GauravsModel::ReadSource(string filename) {
 
 Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg, Model& cnn_model) {
   assert(src.size() > 0);
+  vector<unsigned> src2 = src;
+  vector<unsigned> tgt2 = tgt;
+  vector<PhraseAlignmentLink> alignment2 = alignment;
+  src2.insert(src2.begin(), src_dict.Convert("<s>"));
+  src2.insert(src2.end(), src_dict.Convert("</s>"));
+  tgt2.insert(tgt2.begin(), tgt_dict.Convert("<s>"));
+  tgt2.insert(tgt2.end(), tgt_dict.Convert("</s>"));
+  for (PhraseAlignmentLink& link : alignment2) {
+    link.src_start++;
+    link.src_end++;
+    link.tgt_start++;
+    link.tgt_end++;
+  }
   return getRNNRuleContext(src, tgt, alignment, src_embeddings, tgt_embeddings, cg, cnn_model);
 }
 
