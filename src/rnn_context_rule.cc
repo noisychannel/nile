@@ -78,6 +78,10 @@ Expression RNNContextRule<Builder>::BuildRNNGraph(Context c, ComputationGraph& h
                               {p_w_source, p_R_rs, p_bias_rs}, builder_rule_source);
   vector<Expression> hiddens_rt = Recurrence(c.targetRule, hg,
                               {p_w_target, p_R_rt, p_bias_rt}, builder_rule_target);
+  assert (hiddens_cl.size() > 0);
+  assert (hiddens_cr.size() > 0);
+  assert (hiddens_rs.size() > 0);
+  assert (hiddens_rt.size() > 0);
   convVector.push_back(hiddens_cl.back());
   convVector.push_back(hiddens_cr.back());
   convVector.push_back(hiddens_rs.back());

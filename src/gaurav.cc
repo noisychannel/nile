@@ -132,7 +132,8 @@ Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vecto
     link.tgt_start++;
     link.tgt_end++;
   }
-  return getRNNRuleContext(src, tgt, alignment, src_embeddings, tgt_embeddings, cg, cnn_model);
+
+  return getRNNRuleContext(src2, tgt2, alignment2, src_embeddings, tgt_embeddings, cg, cnn_model);
 }
 
 vector<unsigned> GauravsModel::ConvertSourceSentence(const string& sentence) {
