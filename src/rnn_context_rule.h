@@ -7,6 +7,7 @@
 #include "cnn/lstm.h"
 #include "cnn/dict.h"
 #include "utils.h"
+#include "context.h"
 #include "kbest_hypothesis.h"
 
 #include <iostream>
@@ -85,7 +86,7 @@ struct RNNContextRule {
   // create the "contextual-rule" embedding.
   // This function returns the contextual rule embedding for one context
   // instance.
-  Expression BuildRNNGraph(struct Context c, ComputationGraph& hg);
+  Expression BuildRNNGraph(Context c, ComputationGraph& hg);
 
   // Reads a sequence of contexts built for an n-best hypothesis (in association
   // with the source side sentence) and runs the CRNN model to get rule
@@ -94,7 +95,7 @@ struct RNNContextRule {
   // The embeddings are currently simply summed together to get the feature
   // vector for the hypothesis. This may change in the future.
   // TODO (gaurav)
-  Expression BuildRuleSequenceModel(vector<struct Context> cSeq, ComputationGraph& hg);
+  Expression BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg);
 };
 
 //vector<int> ReadPhrase(const vector<string> line, Dict* sd);

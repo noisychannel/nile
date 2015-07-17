@@ -42,7 +42,6 @@ vector<Expression> RNNContextRule<Builder>::Recurrence(const vector<unsigned>& s
     Expression i_h_t = tanh(i_r_t);
     hiddenStates.push_back(i_h_t);
   }
-  abort();
   return hiddenStates;
 }
 
@@ -54,7 +53,7 @@ vector<Expression> RNNContextRule<Builder>::Recurrence(const vector<unsigned>& s
 // This function returns the contextual rule embedding for one context
 // instance.
 template <class Builder>
-Expression RNNContextRule<Builder>::BuildRNNGraph(struct Context c, ComputationGraph& hg) {
+Expression RNNContextRule<Builder>::BuildRNNGraph(Context c, ComputationGraph& hg) {
   //Initialize builders
   builder_context_left.new_graph(hg);
   builder_context_right.new_graph(hg);
@@ -67,11 +66,10 @@ Expression RNNContextRule<Builder>::BuildRNNGraph(struct Context c, ComputationG
   builder_rule_target.start_new_sequence();
   vector<Expression> convVector;
   // Create the symbolic graph for the unrolled recurrent network
-  cerr << c.leftContext.size() << endl;
-  cerr << c.rightContext.size() << endl;
-  cerr << c.sourceRule.size() << endl;
-  cerr << c.targetRule.size() << endl;
-  abort();
+  //cerr << c.leftContext.size() << endl;
+  //cerr << c.rightContext.size() << endl;
+  //cerr << c.sourceRule.size() << endl;
+  //cerr << c.targetRule.size() << endl;
   vector<Expression> hiddens_cl = Recurrence(c.leftContext, hg,
                               {p_w_source, p_R_cl, p_bias_cl}, builder_context_left);
   vector<Expression> hiddens_cr = Recurrence(c.rightContext, hg,
@@ -96,13 +94,16 @@ Expression RNNContextRule<Builder>::BuildRNNGraph(struct Context c, ComputationG
 // vector for the hypothesis. This may change in the future.
 // TODO (gaurav)
 template <class Builder>
-Expression RNNContextRule<Builder>::BuildRuleSequenceModel(vector<struct Context> cSeq, ComputationGraph& hg) {
+Expression RNNContextRule<Builder>::BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg) {
   assert (cSeq.size() > 0);
   //TODO; Is this count right ?
   const unsigned cSeqLen = cSeq.size() - 1;
   vector<Expression> ruleEmbeddings;
-  for( vector<struct Context>::const_iterator i = cSeq.begin(); i != cSeq.end(); ++i) {
-    Context currentContext = *i;
+  cerr << cSeq.size() << endl;
+  //for( auto i = cSeq.begin(); i != cSeq.end(); ++i) {
+  //  Context currentContext = *i;
+  for (unsigned i = 0; i < cSeq.size(); ++i) {
+    const Context& currentContext = cSeq[i];
     //cerr << currentContext.leftContext.size() << endl;
     //cerr << currentContext.rightContext.size() << endl;
     //cerr << currentContext.sourceRule.size() << endl;
@@ -128,5 +129,25 @@ Expression getRNNRuleContext(
   assert (tgt.size() > 0);
   vector<Context> contexts = getContext(src, tgt, links);
   RNNContextRule<SimpleRNNBuilder> rnncr(model, p_w_source, p_w_target);
+
+  //cerr << "######"  << endl;
+  //for (unsigned i = 0; i < contexts.size(); ++i) {
+    //const Context& currentContext = contexts[i];
+  //for (unsigned i = 0; i < contextSeq.size(); ++i) {
+    //cerr << " ******** " << endl;
+    //Context curContext = contextSeq[i];
+    //cerr << curContext.leftContext.size() << endl;
+    //cerr << curContext.rightContext.size() << endl;
+    //cerr << curContext.sourceRule.size() << endl;
+    //cerr << curContext.targetRule.size() << endl;
+    //cerr << " @@@@@@ " << endl;
+  //}
+    //cerr << currentContext.leftContext.size() << endl;
+    //cerr << currentContext.rightContext.size() << endl;
+    //cerr << currentContext.sourceRule.size() << endl;
+    //cerr << currentContext.targetRule.size() << endl;
+    //cerr << "#" << endl;
+  //}
+  //cerr << "######" << endl;
   return rnncr.BuildRuleSequenceModel(contexts, hg);
 }

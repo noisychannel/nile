@@ -1,18 +1,18 @@
 CC=g++
 #CNN_DIR = /Users/austinma/git/cnn/
-CNN_DIR = /home/austinma/git/cnn
+#CNN_DIR = /home/austinma/git/cnn
 #CNN_DIR=/export/a04/gkumar/code/cnn/
-#CNN_DIR=/Users/gaurav/Projects/cnn/
+CNN_DIR=/Users/gaurav/Projects/cnn/
 #EIGEN = /Users/austinma/git/eigen
-EIGEN = /opt/tools/eigen-dev/
+#EIGEN = /opt/tools/eigen-dev/
 #EIGEN=/export/a04/gkumar/code/eigen/
-#EIGEN=/Users/gaurav/Projects/eigen/
+EIGEN=/Users/gaurav/Projects/eigen/
 CNN_BUILD_DIR=$(CNN_DIR)/build
 INCS=-I$(CNN_DIR) -I$(CNN_BUILD_DIR) -I$(EIGEN)
 LIBS=-L$(CNN_BUILD_DIR)/cnn/
 FINAL=-lcnn -lboost_regex -lboost_serialization
-CFLAGS=-std=c++11 -Ofast -march=native -pipe
-#CFLAGS=-std=c++11 -O0 -g -DDEBUG -pipe
+#CFLAGS=-std=c++11 -Ofast -march=native -pipe
+CFLAGS=-std=c++11 -O0 -g -DDEBUG -pipe
 BINDIR=bin
 OBJDIR=obj
 SRCDIR=src
@@ -28,10 +28,10 @@ clean:
 	rm -rf $(BINDIR)/*
 	rm -rf $(OBJDIR)/*
 
-$(OBJDIR)/context.o: $(SRCDIR)/context.h
+$(OBJDIR)/context.o: $(SRCDIR)/context.cc $(SRCDIR)/context.h $(SRCDIR)/utils.h
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/context.cc -o $(OBJDIR)/context.o
 
-$(OBJDIR)/rnn_context_rule.o: $(SRCDIR)/rnn_context_rule.h
+$(OBJDIR)/rnn_context_rule.o: $(SRCDIR)/rnn_context_rule.cc $(SRCDIR)/rnn_context_rule.h $(SRCDIR)/utils.h $(SRCDIR)/context.h $(SRCDIR)/kbest_hypothesis.h
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/rnn_context_rule.cc -o $(OBJDIR)/rnn_context_rule.o
 
 $(OBJDIR)/reranker.o: $(SRCDIR)/reranker.cc $(SRCDIR)/reranker.h $(SRCDIR)/kbest_hypothesis.h
