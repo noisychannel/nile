@@ -47,7 +47,7 @@ vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& 
     //cerr << rightContext.size() << endl;
     //cerr << sourcePhrase.size() << endl;
     //cerr << targetPhrase.size() << endl;
-    n/cerr << " ******** " << endl;
+    //cerr << " ******** " << endl;
     Context curContext = {leftContext, rightContext, sourcePhrase, targetPhrase};
     //cerr << curContext.leftContext.size() << endl;
     //cerr << curContext.rightContext.size() << endl;
