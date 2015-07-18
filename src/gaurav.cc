@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include "gaurav.h"
+#include "context.h"
 #include "utils.h"
 #include "rnn_context_rule.h"
 
@@ -55,7 +56,8 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
   return embedDict;
 }
 
-GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_embedding_filename, string tgt_embedding_filename) {
+template <class Builder>
+GauravsModel<Builder>::GauravsModel(Model& cnn_model, string src_filename, string src_embedding_filename, string tgt_embedding_filename) {
   unordered_map<string, unsigned> tmp_src_dict, tmp_tgt_dict;
   unordered_map<unsigned, vector<float> > src_embedding_dict = LoadEmbeddings(src_embedding_filename, tmp_src_dict);
   unordered_map<unsigned, vector<float> > tgt_embedding_dict = LoadEmbeddings(tgt_embedding_filename, tmp_tgt_dict);
@@ -64,7 +66,7 @@ GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_emb
   assert (src_embedding_dict.begin()->second.size() > 0);
   assert (src_embedding_dict.begin()->second.size() == tgt_embedding_dict.begin()->second.size());
 
-  unsigned embedding_dimensions = src_embedding_dict.begin()->second.size();
+  embedding_dimensions = src_embedding_dict.begin()->second.size();
   src_vocab_size = src_embedding_dict.size() + 1; // XXX: Hack: +1 for <s>, which isn't usually included in the src vocabulary
   tgt_vocab_size = tgt_embedding_dict.size() + 1;
 
@@ -76,8 +78,7 @@ GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_emb
   src_dict.Freeze();
   tgt_dict.Freeze();
 
-  src_embeddings = cnn_model.add_lookup_parameters(src_vocab_size, {embedding_dimensions});
-  tgt_embeddings = cnn_model.add_lookup_parameters(tgt_vocab_size, {embedding_dimensions});
+  InitializeParameters(cnn_model);
 
   for(unsigned i = 0; i < src_embedding_dict.size(); ++i) {
     src_embeddings->Initialize(i, src_embedding_dict[i]);
@@ -90,7 +91,28 @@ GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_emb
   ReadSource(src_filename);
 }
 
-void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out) {
+template <class Builder>
+void GauravsModel<Builder>::InitializeParameters(Model& cnn_model) {
+  builder_context_left = Builder(LAYERS, embedding_dimensions, hidden_size, &cnn_model);
+  builder_context_right = Builder(LAYERS, embedding_dimensions, hidden_size, &cnn_model);
+  builder_rule_source = Builder(LAYERS, embedding_dimensions, hidden_size, &cnn_model);
+  builder_rule_target = Builder(LAYERS, embedding_dimensions, hidden_size, &cnn_model);
+
+  p_R_cl = cnn_model.add_parameters({hidden_size, hidden_size});
+  p_bias_cl = cnn_model.add_parameters({hidden_size});
+  p_R_cr = cnn_model.add_parameters({hidden_size, hidden_size});
+  p_bias_cr = cnn_model.add_parameters({hidden_size});
+  p_R_rs = cnn_model.add_parameters({hidden_size, hidden_size});
+  p_bias_rs = cnn_model.add_parameters({hidden_size});
+  p_R_rt = cnn_model.add_parameters({hidden_size, hidden_size});
+  p_bias_rt = cnn_model.add_parameters({hidden_size});
+
+  src_embeddings = cnn_model.add_lookup_parameters(src_vocab_size, {embedding_dimensions});
+  tgt_embeddings = cnn_model.add_lookup_parameters(tgt_vocab_size, {embedding_dimensions});
+}
+
+template <class Builder>
+void GauravsModel<Builder>::BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out) {
   unsigned vocab_size = in.size();
   vector<string> vocab_vec(vocab_size);
   for (auto& it : in) {
@@ -105,7 +127,8 @@ void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Di
   //out.Freeze();
 }
 
-void GauravsModel::ReadSource(string filename) {
+template <class Builder>
+void GauravsModel<Builder>::ReadSource(string filename) {
   ifstream f(filename);
   for (string line; getline(f, line);) {
     vector<string> pieces = tokenize(line, "|||");
@@ -117,7 +140,8 @@ void GauravsModel::ReadSource(string filename) {
   f.close();
 }
 
-Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg, Model& cnn_model) {
+template <class Builder>
+Expression GauravsModel<Builder>::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg, Model& cnn_model) {
   assert(src.size() > 0);
   vector<unsigned> src2 = src;
   vector<unsigned> tgt2 = tgt;
@@ -136,25 +160,30 @@ Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vecto
   return getRNNRuleContext(src2, tgt2, alignment2, src_embeddings, tgt_embeddings, hidden_size, cg, cnn_model);
 }
 
-vector<unsigned> GauravsModel::ConvertSourceSentence(const string& sentence) {
+template <class Builder>
+vector<unsigned> GauravsModel<Builder>::ConvertSourceSentence(const string& sentence) {
   vector<string> words = tokenize(sentence, " ");
   return ConvertSourceSentence(words);
 }
 
-vector<unsigned> GauravsModel::ConvertSourceSentence(const vector<string>& words) {
+template <class Builder>
+vector<unsigned> GauravsModel<Builder>::ConvertSourceSentence(const vector<string>& words) {
   return ConvertSentence(words, src_dict);
 }
 
-vector<unsigned> GauravsModel::ConvertTargetSentence(const string& sentence) {
+template <class Builder>
+vector<unsigned> GauravsModel<Builder>::ConvertTargetSentence(const string& sentence) {
   vector<string> words = tokenize(sentence, " ");
   return ConvertTargetSentence(words);
 }
 
-vector<unsigned> GauravsModel::ConvertTargetSentence(const vector<string>& words) {
+template <class Builder>
+vector<unsigned> GauravsModel<Builder>::ConvertTargetSentence(const vector<string>& words) {
   return ConvertSentence(words, tgt_dict);
 }
 
-vector<unsigned> GauravsModel::ConvertSentence(const vector<string>& words, Dict& dict) {
+template <class Builder>
+vector<unsigned> GauravsModel<Builder>::ConvertSentence(const vector<string>& words, Dict& dict) {
   vector<unsigned> r(words.size());
   for (unsigned i = 0; i < words.size(); ++i) {
     if (dict.Contains(words[i])) {
@@ -168,11 +197,13 @@ vector<unsigned> GauravsModel::ConvertSentence(const vector<string>& words, Dict
   return r;
 }
 
-vector<unsigned> GauravsModel::GetSourceSentence(const string& sent_id) {
+template <class Builder>
+vector<unsigned> GauravsModel<Builder>::GetSourceSentence(const string& sent_id) {
    assert (src_sentences.find(sent_id) != src_sentences.end());
   return src_sentences[sent_id];
 }
 
-unsigned GauravsModel::OutputDimension() const {
+template <class Builder>
+unsigned GauravsModel<Builder>::OutputDimension() const {
   return hidden_size;
 }

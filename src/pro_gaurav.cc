@@ -1,3 +1,4 @@
+#include "cnn/lstm.h"
 #include "cnn/nodes.h"
 #include "cnn/cnn.h"
 #include "cnn/training.h"
@@ -83,7 +84,7 @@ int main(int argc, char** argv) {
   Model cnn_model;
   KbestConverter* converter = new KbestConverter(kbest_filename, max_features);
 
-  GauravsModel gauravs_model (cnn_model, source_filename, source_embedding_filename, target_embedding_filename);
+  GauravsModel<LSTMBuilder> gauravs_model (cnn_model, source_filename, source_embedding_filename, target_embedding_filename);
 
   RerankerModel* reranker_model = NULL;
   if (nonlinear) {

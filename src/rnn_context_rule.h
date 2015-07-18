@@ -21,14 +21,6 @@ using namespace cnn;
 
 const unsigned LAYERS = 2;
 
-
-struct Params {
-  LookupParameters* p_w;
-  Parameters* p_R;
-  Parameters* p_bias;
-};
-
-
 template <class Builder>
 struct RNNContextRule {
   // The embeddings for the words
