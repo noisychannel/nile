@@ -1,3 +1,4 @@
+import re
 import sys
 import argparse
 from math import exp
@@ -33,6 +34,7 @@ for line in open(args.kbest):
 	parts = line.split('|||')
 	sent_id = int(parts[0])
 	hyp = tuple(parts[1].strip().split())
+	hyp = tuple(word for word in hyp if re.match(r'\|[0-9]*-[0-9]*\|', word) is None)
 	ref = refs[sent_id]
 	if not warned:
 		if hyp[0] == '<s>' and ref[0] != '<s>':

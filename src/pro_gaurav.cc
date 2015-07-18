@@ -27,8 +27,8 @@ using namespace cnn;
 using namespace cnn::expr;
 
 const unsigned max_features = 1000;
-const unsigned num_iterations = 10;
-const unsigned hidden_size = 500;
+const unsigned num_iterations = 1000;
+const unsigned hidden_size = 47;
 const bool nonlinear = false;
 
 unordered_map<string, vector<int> > ReadSource(string filename, Dict& src_dict) {
@@ -93,10 +93,10 @@ int main(int argc, char** argv) {
     reranker_model = new LinearRerankerModel(gauravs_model.OutputDimension());
   } 
 
-  //SimpleSGDTrainer sgd(&reranker_model->cnn_model, 0.0, 10.0);
-  AdadeltaTrainer sgd(&reranker_model->cnn_model, 0.0);
+  SimpleSGDTrainer sgd(&reranker_model->cnn_model, 0.0, 0.0);
+  //AdadeltaTrainer sgd(&reranker_model->cnn_model, 0.0);
   //sgd.eta_decay = 0.05;
-  sgd.clipping_enabled = false;
+  //sgd.clipping_enabled = false;
 
   cerr << "Training model...\n";
   vector<KbestHypothesis> hypotheses;
@@ -133,8 +133,8 @@ int main(int argc, char** argv) {
 
       loss += as_scalar(cg.forward());
       if (iteration != 0) {
-        cg.backward();
-        sgd.update(1.0);
+        //cg.backward();
+        //sgd.update(1.0);
       }
       if (ctrlc_pressed) {
         break;
@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
     if (ctrlc_pressed) {
       break;
     }
-    cerr << "Iteration " << iteration << " loss: " << loss << " (EBLEU = " << -loss / num_sentences << ")" << endl;
+    cerr << "Gaurav Iteration " << iteration << " loss: " << loss << " (EBLEU = " << -loss / num_sentences << ")" << endl;
   }
 
   boost::archive::text_oarchive oa(cout);
