@@ -30,7 +30,7 @@ using namespace cnn::expr;
 const unsigned max_features = 1000;
 const unsigned num_iterations = 1000;
 const unsigned hidden_size = 47;
-const bool nonlinear = false;
+const bool nonlinear = true;
 
 unordered_map<string, vector<int> > ReadSource(string filename, Dict& src_dict) {
   unordered_map<string, vector<int> > r;
@@ -94,8 +94,8 @@ int main(int argc, char** argv) {
     reranker_model = new LinearRerankerModel(gauravs_model.OutputDimension());
   } 
 
-  SimpleSGDTrainer sgd(&reranker_model->cnn_model, 0.0, 0.0);
-  //AdadeltaTrainer sgd(&reranker_model->cnn_model, 0.0);
+  //SimpleSGDTrainer sgd(&reranker_model->cnn_model, 0.0, 0.1);
+  AdadeltaTrainer sgd(&reranker_model->cnn_model, 0.0);
   //sgd.eta_decay = 0.05;
   //sgd.clipping_enabled = false;
 
@@ -134,8 +134,8 @@ int main(int argc, char** argv) {
 
       loss += as_scalar(cg.forward());
       if (iteration != 0) {
-        //cg.backward();
-        //sgd.update(1.0);
+        cg.backward();
+        sgd.update(1.0);
       }
       if (ctrlc_pressed) {
         break;
