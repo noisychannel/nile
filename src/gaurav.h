@@ -6,6 +6,7 @@
 #include "kbest_converter.h"
 #include "cnn/dict.h"
 #include "cnn/expr.h"
+#include "cnn/lstm.h"
 #include "context.h"
 
 using namespace std;
@@ -27,12 +28,11 @@ struct Params {
 
 unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered_map<string, unsigned>& dict);
 
-template <class Builder>
 class GauravsModel {
 public:
   GauravsModel(Model& cnn_model, string src_filename, string src_embedding_filename, string tgt_embedding_filename);
   void ReadSource(string filename);
-  Expression GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg, Model& cnn_model);
+  Expression GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg);
   vector<unsigned> GetSourceSentence(const string& sent_id);
   vector<unsigned> ConvertSourceSentence(const string& words);
   vector<unsigned> ConvertSourceSentence(const vector<string>& words);
@@ -53,7 +53,7 @@ private:
   const string kUnk = "<unk>";
   unsigned embedding_dimensions;
   const unsigned hidden_size = 71;
-  const unsigned LAYERS = 2;
+  const unsigned num_layers = 2;
 
   Parameters* p_R_cl;
   Parameters* p_bias_cl;
@@ -64,14 +64,14 @@ private:
   Parameters* p_R_rt;
   Parameters* p_bias_rt;
 
-  Builder builder_context_left;
-  Builder builder_context_right;
-  Builder builder_rule_source;
-  Builder builder_rule_target;
+  LSTMBuilder builder_context_left;
+  LSTMBuilder builder_context_right;
+  LSTMBuilder builder_rule_source;
+  LSTMBuilder builder_rule_target;
 
   // This is a general recurrence operation for an RNN over a sequence
   // Reads in a sequence, creates and returns hidden states.
-  vector<Expression> Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, Builder builder);
+  vector<Expression> Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder);
 
   // For a given context (source rule, target rule, left context and
   // right context, this generates the symbolic graph for the

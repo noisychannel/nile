@@ -32,9 +32,6 @@ clean:
 $(OBJDIR)/context.o: $(SRCDIR)/context.cc $(SRCDIR)/context.h $(SRCDIR)/utils.h
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/context.cc -o $(OBJDIR)/context.o
 
-$(OBJDIR)/rnn_context_rule.o: $(SRCDIR)/rnn_context_rule.cc $(SRCDIR)/rnn_context_rule.h $(SRCDIR)/utils.h $(SRCDIR)/context.h $(SRCDIR)/kbest_hypothesis.h
-	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/rnn_context_rule.cc -o $(OBJDIR)/rnn_context_rule.o
-
 $(OBJDIR)/reranker.o: $(SRCDIR)/reranker.cc $(SRCDIR)/reranker.h $(SRCDIR)/kbest_hypothesis.h
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/reranker.cc -o $(OBJDIR)/reranker.o
 
@@ -53,13 +50,13 @@ $(OBJDIR)/pro.o: $(SRCDIR)/pro.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypothesis.h
 $(OBJDIR)/pro_ebleu.o: $(SRCDIR)/pro_ebleu.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/kbestlist.h $(SRCDIR)/reranker.h
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/pro_ebleu.cc -o $(OBJDIR)/pro_ebleu.o
 
-$(OBJDIR)/pro_gaurav.o: $(SRCDIR)/pro_gaurav.cc $(SRCDIR)/utils.h $(SRCDIR)/reranker.h $(SRCDIR)/rnn_context_rule.h $(SRCDIR)/gaurav.h
+$(OBJDIR)/pro_gaurav.o: $(SRCDIR)/pro_gaurav.cc $(SRCDIR)/utils.h $(SRCDIR)/reranker.h $(SRCDIR)/gaurav.h
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/pro_gaurav.cc -o $(OBJDIR)/pro_gaurav.o
 
 $(OBJDIR)/rerank.o: $(SRCDIR)/rerank.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/pair_sampler.h	
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/rerank.cc -o $(OBJDIR)/rerank.o
 
-$(OBJDIR)/gaurav.o: $(SRCDIR)/gaurav.cc $(SRCDIR)/utils.h $(SRCDIR)/gaurav.h $(SRCDIR)/context.h $(SRCDIR)/kbest_converter.h $(SRCDIR)/rnn_context_rule.h
+$(OBJDIR)/gaurav.o: $(SRCDIR)/gaurav.cc $(SRCDIR)/utils.h $(SRCDIR)/gaurav.h $(SRCDIR)/context.h $(SRCDIR)/kbest_converter.h 
 	g++ -c $(CFLAGS) $(INCS) $(SRCDIR)/gaurav.cc -o $(OBJDIR)/gaurav.o
 
 $(OBJDIR)/kbest_converter.o: $(SRCDIR)/kbest_converter.cc $(SRCDIR)/kbest_converter.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/utils.h
@@ -74,8 +71,8 @@ $(BINDIR)/pro: $(OBJDIR)/pro.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/utils.o $(
 $(BINDIR)/pro_ebleu: $(OBJDIR)/pro_ebleu.o $(OBJDIR)/kbestlist.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/reranker.o $(OBJDIR)/kbest_converter.o
 	g++ $(LIBS) $(OBJDIR)/pro_ebleu.o $(OBJDIR)/kbestlist.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/reranker.o $(OBJDIR)/kbest_converter.o -o $(BINDIR)/pro_ebleu $(FINAL)
 
-$(BINDIR)/pro_gaurav: $(OBJDIR)/pro_gaurav.o $(OBJDIR)/gaurav.o $(OBJDIR)/utils.o $(OBJDIR)/reranker.o $(OBJDIR)/kbest_converter.o $(OBJDIR)/rnn_context_rule.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o $(OBJDIR)/context.o
-	g++ $(LIBS) $(OBJDIR)/pro_gaurav.o $(OBJDIR)/gaurav.o $(OBJDIR)/utils.o $(OBJDIR)/reranker.o $(OBJDIR)/context.o $(OBJDIR)/kbest_converter.o $(OBJDIR)/rnn_context_rule.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o -o $(BINDIR)/pro_gaurav $(FINAL)
+$(BINDIR)/pro_gaurav: $(OBJDIR)/pro_gaurav.o $(OBJDIR)/gaurav.o $(OBJDIR)/utils.o $(OBJDIR)/reranker.o $(OBJDIR)/kbest_converter.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o $(OBJDIR)/context.o
+	g++ $(LIBS) $(OBJDIR)/pro_gaurav.o $(OBJDIR)/gaurav.o $(OBJDIR)/utils.o $(OBJDIR)/reranker.o $(OBJDIR)/context.o $(OBJDIR)/kbest_converter.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o -o $(BINDIR)/pro_gaurav $(FINAL)
 
 $(BINDIR)/rerank: $(OBJDIR)/rerank.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o $(OBJDIR)/reranker.o $(OBJDIR)/kbest_converter.o
 	g++ $(LIBS) $(OBJDIR)/rerank.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o $(OBJDIR)/reranker.o $(OBJDIR)/kbest_converter.o -o $(BINDIR)/rerank $(FINAL)

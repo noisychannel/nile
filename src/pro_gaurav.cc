@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
   Model cnn_model;
   KbestConverter* converter = new KbestConverter(kbest_filename, max_features);
 
-  GauravsModel<LSTMBuilder> gauravs_model (cnn_model, source_filename, source_embedding_filename, target_embedding_filename);
+  GauravsModel gauravs_model (cnn_model, source_filename, source_embedding_filename, target_embedding_filename);
 
   RerankerModel* reranker_model = NULL;
   if (nonlinear) {
@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
         vector<unsigned> tgt = gauravs_model.ConvertTargetSentence(tgt_words); 
         assert(src.size() > 0);
         assert(tgt.size() > 0);
-        Expression hyp_features = gauravs_model.GetRuleContext(src, tgt, alignment, cg, cnn_model);
+        Expression hyp_features = gauravs_model.GetRuleContext(src, tgt, alignment, cg);
         hypothesis_features.push_back(hyp_features);
         metric_scores.push_back(hyp.metric_score);
       }

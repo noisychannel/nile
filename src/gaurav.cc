@@ -3,7 +3,6 @@
 #include "gaurav.h"
 #include "context.h"
 #include "utils.h"
-#include "rnn_context_rule.h"
 
 using namespace std;
 
@@ -56,8 +55,7 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
   return embedDict;
 }
 
-template <class Builder>
-GauravsModel<Builder>::GauravsModel(Model& cnn_model, string src_filename, string src_embedding_filename, string tgt_embedding_filename) {
+GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_embedding_filename, string tgt_embedding_filename) {
   unordered_map<string, unsigned> tmp_src_dict, tmp_tgt_dict;
   unordered_map<unsigned, vector<float> > src_embedding_dict = LoadEmbeddings(src_embedding_filename, tmp_src_dict);
   unordered_map<unsigned, vector<float> > tgt_embedding_dict = LoadEmbeddings(tgt_embedding_filename, tmp_tgt_dict);
@@ -91,12 +89,11 @@ GauravsModel<Builder>::GauravsModel(Model& cnn_model, string src_filename, strin
   ReadSource(src_filename);
 }
 
-template <class Builder>
-void GauravsModel<Builder>::InitializeParameters(Model& cnn_model) {
-  builder_context_left = Builder(LAYERS, embedding_dimensions, hidden_size, &cnn_model);
-  builder_context_right = Builder(LAYERS, embedding_dimensions, hidden_size, &cnn_model);
-  builder_rule_source = Builder(LAYERS, embedding_dimensions, hidden_size, &cnn_model);
-  builder_rule_target = Builder(LAYERS, embedding_dimensions, hidden_size, &cnn_model);
+void GauravsModel::InitializeParameters(Model& cnn_model) {
+  builder_context_left = LSTMBuilder(num_layers, embedding_dimensions, hidden_size, &cnn_model);
+  builder_context_right = LSTMBuilder(num_layers, embedding_dimensions, hidden_size, &cnn_model);
+  builder_rule_source = LSTMBuilder(num_layers, embedding_dimensions, hidden_size, &cnn_model);
+  builder_rule_target = LSTMBuilder(num_layers, embedding_dimensions, hidden_size, &cnn_model);
 
   p_R_cl = cnn_model.add_parameters({hidden_size, hidden_size});
   p_bias_cl = cnn_model.add_parameters({hidden_size});
@@ -111,8 +108,7 @@ void GauravsModel<Builder>::InitializeParameters(Model& cnn_model) {
   tgt_embeddings = cnn_model.add_lookup_parameters(tgt_vocab_size, {embedding_dimensions});
 }
 
-template <class Builder>
-void GauravsModel<Builder>::BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out) {
+void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out) {
   unsigned vocab_size = in.size();
   vector<string> vocab_vec(vocab_size);
   for (auto& it : in) {
@@ -127,8 +123,7 @@ void GauravsModel<Builder>::BuildDictionary(const unordered_map<string, unsigned
   //out.Freeze();
 }
 
-template <class Builder>
-void GauravsModel<Builder>::ReadSource(string filename) {
+void GauravsModel::ReadSource(string filename) {
   ifstream f(filename);
   for (string line; getline(f, line);) {
     vector<string> pieces = tokenize(line, "|||");
@@ -140,8 +135,7 @@ void GauravsModel<Builder>::ReadSource(string filename) {
   f.close();
 }
 
-template <class Builder>
-Expression GauravsModel<Builder>::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg, Model& cnn_model) {
+Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg) {
   assert(src.size() > 0);
   vector<unsigned> src2 = src;
   vector<unsigned> tgt2 = tgt;
@@ -157,33 +151,28 @@ Expression GauravsModel<Builder>::GetRuleContext(const vector<unsigned>& src, co
     link.tgt_end++;
   }
 
-  return getRNNRuleContext(src2, tgt2, alignment2, src_embeddings, tgt_embeddings, hidden_size, cg, cnn_model);
+  return getRNNRuleContext(src2, tgt2, alignment2, cg);
 }
 
-template <class Builder>
-vector<unsigned> GauravsModel<Builder>::ConvertSourceSentence(const string& sentence) {
+vector<unsigned> GauravsModel::ConvertSourceSentence(const string& sentence) {
   vector<string> words = tokenize(sentence, " ");
   return ConvertSourceSentence(words);
 }
 
-template <class Builder>
-vector<unsigned> GauravsModel<Builder>::ConvertSourceSentence(const vector<string>& words) {
+vector<unsigned> GauravsModel::ConvertSourceSentence(const vector<string>& words) {
   return ConvertSentence(words, src_dict);
 }
 
-template <class Builder>
-vector<unsigned> GauravsModel<Builder>::ConvertTargetSentence(const string& sentence) {
+vector<unsigned> GauravsModel::ConvertTargetSentence(const string& sentence) {
   vector<string> words = tokenize(sentence, " ");
   return ConvertTargetSentence(words);
 }
 
-template <class Builder>
-vector<unsigned> GauravsModel<Builder>::ConvertTargetSentence(const vector<string>& words) {
+vector<unsigned> GauravsModel::ConvertTargetSentence(const vector<string>& words) {
   return ConvertSentence(words, tgt_dict);
 }
 
-template <class Builder>
-vector<unsigned> GauravsModel<Builder>::ConvertSentence(const vector<string>& words, Dict& dict) {
+vector<unsigned> GauravsModel::ConvertSentence(const vector<string>& words, Dict& dict) {
   vector<unsigned> r(words.size());
   for (unsigned i = 0; i < words.size(); ++i) {
     if (dict.Contains(words[i])) {
@@ -197,13 +186,88 @@ vector<unsigned> GauravsModel<Builder>::ConvertSentence(const vector<string>& wo
   return r;
 }
 
-template <class Builder>
-vector<unsigned> GauravsModel<Builder>::GetSourceSentence(const string& sent_id) {
+vector<unsigned> GauravsModel::GetSourceSentence(const string& sent_id) {
    assert (src_sentences.find(sent_id) != src_sentences.end());
   return src_sentences[sent_id];
 }
 
-template <class Builder>
-unsigned GauravsModel<Builder>::OutputDimension() const {
+unsigned GauravsModel::OutputDimension() const {
   return hidden_size;
+}
+
+Expression GauravsModel::getRNNRuleContext(
+    const vector<unsigned>& src, const vector<unsigned>& tgt,
+    const vector<PhraseAlignmentLink>& links, ComputationGraph& hg) {
+
+  assert (links.size() > 0);
+  assert (src.size() > 0);
+  assert (tgt.size() > 0);
+  vector<Context> contexts = getContext(src, tgt, links);
+  return BuildRuleSequenceModel(contexts, hg);
+}
+
+Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg) {
+  assert (cSeq.size() > 0);
+  //TODO; Is this count right ?
+  vector<Expression> ruleEmbeddings;
+  for (unsigned i = 0; i < cSeq.size(); ++i) {
+    const Context& currentContext = cSeq[i];
+    Expression currentEmbedding = BuildRNNGraph(currentContext, hg);
+    ruleEmbeddings.push_back(currentEmbedding);
+  }
+  assert (ruleEmbeddings.size() > 0);
+  assert (ruleEmbeddings.size() == cSeq.size());
+  return sum(ruleEmbeddings);
+}
+
+Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg) {
+  //Initialize builders
+  builder_context_left.new_graph(hg);
+  builder_context_right.new_graph(hg);
+  builder_rule_source.new_graph(hg);
+  builder_rule_target.new_graph(hg);
+  // Tell the builder that we are about to start a recurrence
+  builder_context_left.start_new_sequence();
+  builder_context_right.start_new_sequence();
+  builder_rule_source.start_new_sequence();
+  builder_rule_target.start_new_sequence();
+  vector<Expression> convVector;
+  // Create the symbolic graph for the unrolled recurrent network
+  vector<Expression> hiddens_cl = Recurrence(c.leftContext, hg,
+                              {src_embeddings, p_R_cl, p_bias_cl}, builder_context_left);
+  vector<Expression> hiddens_cr = Recurrence(c.rightContext, hg,
+                              {src_embeddings, p_R_cr, p_bias_cr}, builder_context_right);
+  vector<Expression> hiddens_rs = Recurrence(c.sourceRule, hg,
+                              {src_embeddings, p_R_rs, p_bias_rs}, builder_rule_source);
+  vector<Expression> hiddens_rt = Recurrence(c.targetRule, hg,
+                              {tgt_embeddings, p_R_rt, p_bias_rt}, builder_rule_target);
+  assert (hiddens_cl.size() > 0);
+  assert (hiddens_cr.size() > 0);
+  assert (hiddens_rs.size() > 0);
+  assert (hiddens_rt.size() > 0);
+  convVector.push_back(hiddens_cl.back());
+  convVector.push_back(hiddens_cr.back());
+  convVector.push_back(hiddens_rs.back());
+  convVector.push_back(hiddens_rt.back());
+  Expression conv = sum(convVector);
+  return conv;
+}
+
+vector<Expression> GauravsModel::Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder) {
+  assert (sequence.size() > 0);
+  const unsigned sequenceLen = sequence.size();
+  vector<Expression> hiddenStates;
+  Expression i_R = parameter(hg, p.p_R);
+  Expression i_bias = parameter(hg, p.p_bias);
+  for (unsigned t = 0; t < sequenceLen; ++t) {
+    // Get the embedding for the current input token
+    Expression i_x_t = lookup(hg, p.p_w, sequence[t]);
+    // y_t = RNN(x_t)
+    Expression i_y_t = builder.add_input(i_x_t);
+    // r_T = bias + R * y_t
+    Expression i_r_t = i_bias + i_R * i_y_t;
+    Expression i_h_t = tanh(i_r_t);
+    hiddenStates.push_back(i_h_t);
+  }
+  return hiddenStates;
 }
