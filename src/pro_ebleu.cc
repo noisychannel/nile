@@ -7,6 +7,7 @@
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/map.hpp>
 #include <boost/serialization/export.hpp>
+#include <boost/program_options.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -23,11 +24,7 @@
 using namespace std;
 using namespace cnn;
 using namespace cnn::expr;
-
-const unsigned num_iterations = 1000;
-const unsigned max_features = 1000;
-const unsigned hidden_size = 500;
-const bool nonlinear = true;
+namespace po = boost::program_options;
 
 bool ctrlc_pressed = false;
 void ctrlc_handler(int signal) {
@@ -67,13 +64,110 @@ unsigned argmax(vector<T> v) {
   return bi;
 }
 
+Trainer* CreateTrainer(Model& model, const po::variables_map& vm) {
+  double regularization_strength = vm["regularization"].as<double>();
+  double eta_decay = vm["eta_decay"].as<double>();
+  bool clipping_enabled = (vm.count("no_clipping") == 0);
+  unsigned learner_count = vm.count("sgd") + vm.count("momentum") + vm.count("adagrad") + vm.count("adadelta") + vm.count("rmsprop") + vm.count("adam");
+  if (learner_count > 1) {
+    cerr << "Invalid parameters: Please specify only one learner type.";
+    exit(1);
+  }
+
+  Trainer* trainer = NULL;
+  if (vm.count("momentum")) {
+    double learning_rate = (vm.count("learning_rate")) ? vm["learning_rate"].as<double>() : 0.01;
+    double momentum = vm["momentum"].as<double>();
+    trainer = new MomentumSGDTrainer(&model, regularization_strength, learning_rate, momentum);
+  }
+  else if (vm.count("adagrad")) {
+    double learning_rate = (vm.count("learning_rate")) ? vm["learning_rate"].as<double>() : 0.1;
+    double eps = (vm.count("epsilon")) ? vm["epsilon"].as<double>() : 1e-20;
+    trainer = new AdagradTrainer(&model, regularization_strength, learning_rate, eps);
+  }
+  else if (vm.count("adadelta")) {
+    double eps = (vm.count("epsilon")) ? vm["epsilon"].as<double>() : 1e-6;
+    double rho = (vm.count("rho")) ? vm["rho"].as<double>() : 0.95;
+    trainer = new AdadeltaTrainer(&model, regularization_strength, eps, rho);
+  }
+  else if (vm.count("rmsprop")) {
+    double learning_rate = (vm.count("learning_rate")) ? vm["learning_rate"].as<double>() : 0.1;
+    double eps = (vm.count("epsilon")) ? vm["epsilon"].as<double>() : 1e-20;
+    double rho = (vm.count("rho")) ? vm["rho"].as<double>() : 0.95;
+    trainer = new RmsPropTrainer(&model, regularization_strength, learning_rate, eps, rho);
+  }
+  else if (vm.count("adam")) {
+    double alpha = (vm.count("alpha")) ? vm["alpha"].as<double>() : 0.001;
+    double beta1 = (vm.count("beta1")) ? vm["beta1"].as<double>() : 0.9;
+    double beta2 = (vm.count("beta2")) ? vm["beta2"].as<double>() : 0.999;
+    double eps = (vm.count("epsilon")) ? vm["epsilon"].as<double>() : 1e-8;
+    trainer = new AdamTrainer(&model, regularization_strength, alpha, beta1, beta2, eps);
+  }
+  else { /* sgd */
+    double learning_rate = (vm.count("learning_rate")) ? vm["learning_rate"].as<double>() : 0.1;
+    trainer = new SimpleSGDTrainer(&model, regularization_strength, learning_rate);
+  }
+  assert (trainer != NULL);
+
+  trainer->eta_decay = eta_decay;
+  trainer->clipping_enabled = clipping_enabled;
+  return trainer;
+}
+
 int main(int argc, char** argv) {
   signal (SIGINT, ctrlc_handler);
-  if (argc < 2) {
-    ShowUsageAndExit(argv[0]);
-  }
-  const string kbest_filename = argv[1];
-  const string dev_filename = (argc >= 3) ? argv[2] : "";
+
+  po::options_description desc("description");
+  desc.add_options()
+  ("kbest_filename", po::value<string>()->required(), "Input k-best hypothesis file") 
+  ("dev_filename", po::value<string>()->default_value(""), "(Optional) Dev k-best list, used for early stopping")
+  ("sgd", "Use SGD for optimization")
+  ("momentum", po::value<double>(), "Use SGD with this momentum value")
+  ("adagrad", "Use Adagrad for optimization")
+  ("adadelta", "Use Adadelta for optimization")
+  ("rmsprop", "Use RMSProp for optimization")
+  ("adam", "Use Adam for optimization")
+  ("learning_rate,r", po::value<double>(), "Learning rate for optimizer (SGD, Adagrad, Adadelta, and RMSProp only)")
+  ("alpha", po::value<double>(), "Alpha (Adam only)")
+  ("beta1", po::value<double>(), "Beta1 (Adam only)")
+  ("beta2", po::value<double>(), "Beta2 (Adam only)")
+  ("rho", po::value<double>(), "Moving average decay parameter (RMSProp and Adadelta only)")
+  ("epsilon", po::value<double>(), "Epsilon value for optimizer (Adagrad, Adadelta, RMSProp, and Adam only)")
+  ("regularization", po::value<double>()->default_value(0.0), "L2 Regularization strength")
+  ("eta_decay", po::value<double>()->default_value(0.05), "Learning rate decay rate (SGD only)")
+  ("no_clipping", "Disable clipping of gradients")
+  ("hidden_size,h", po::value<unsigned>()->default_value(0), "Hidden layer dimensionality. 0 = linear model")
+  ("max_features", po::value<unsigned>()->default_value(UINT_MAX), "Maximum number of input features. Later features will be discarded.")
+  ("num_iterations,i", po::value<unsigned>()->default_value(UINT_MAX), "Number of epochs to train for")
+  ("help", "Display this help message");
+
+  po::positional_options_description positional_options;
+  positional_options.add("kbest_filename", 1);
+  positional_options.add("dev_filename", 1);
+
+  po::variables_map vm;
+  //try {
+    po::store(po::command_line_parser(argc, argv).options(desc).positional(positional_options).run(), vm);
+
+    if (vm.count("help")) {
+      cerr << desc; 
+      ShowUsageAndExit(argv[0]);
+      return 1;
+    }
+
+    po::notify(vm);
+    
+  //}
+  /*catch (po::error& e) {
+    cerr << "Error parsing arguments. Exiting..." << endl;
+    return 1;
+  }*/
+
+  const string kbest_filename = vm["kbest_filename"].as<string>();
+  const string dev_filename = vm["dev_filename"].as<string>();
+  const unsigned hidden_size = vm["hidden_size"].as<unsigned>();
+  const unsigned max_features = vm["max_features"].as<unsigned>();
+  const unsigned num_iterations = vm["num_iterations"].as<unsigned>();
 
   cerr << "Running on " << Eigen::nbThreads() << " threads." << endl;
 
@@ -81,17 +175,14 @@ int main(int argc, char** argv) {
   KbestConverter* converter = new KbestConverter(kbest_filename, max_features);
 
   RerankerModel* reranker_model = NULL;
-  if (nonlinear) {
+  if (hidden_size > 0) {
     reranker_model = new NonlinearRerankerModel(converter->num_dimensions, hidden_size);
   }
   else {
     reranker_model = new LinearRerankerModel(converter->num_dimensions);
   }
 
-  //SimpleSGDTrainer sgd(&reranker_model->cnn_model, 0.0, 10.0);
-  AdadeltaTrainer sgd(&reranker_model->cnn_model, 0.0);
-  //sgd.eta_decay = 0.05;
-  sgd.clipping_enabled = false;
+  Trainer* trainer = CreateTrainer(reranker_model->cnn_model, vm);
 
   cerr << "Training model...\n";
   vector<KbestHypothesis> hypotheses;
@@ -123,7 +214,7 @@ int main(int argc, char** argv) {
       loss += as_scalar(cg.forward());
       if (iteration != 0) {
         cg.backward();
-        sgd.update(1.0);
+        trainer->update(1.0);
       }
       if (ctrlc_pressed) {
         break;
@@ -183,6 +274,11 @@ int main(int argc, char** argv) {
   if (reranker_model != NULL) {
     delete reranker_model;
     reranker_model = NULL;
+  }
+
+  if (trainer != NULL) {
+    delete trainer;
+    trainer = NULL;
   }
 
   return 0;
