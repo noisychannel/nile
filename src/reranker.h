@@ -17,10 +17,11 @@ using namespace cnn::expr;
 class RerankerModel {
 public:
   explicit RerankerModel(unsigned num_dimensions);
-  Expression BatchScore(vector<vector<float> >& features, vector<float>& gold_scores, ComputationGraph& cg);
-  Expression BatchScore(vector<Expression>& features, vector<float>& gold_scores, ComputationGraph& cg);
+  Expression BatchScore(vector<vector<float> >& features, ComputationGraph& cg);
+  Expression BatchScore(vector<Expression>& features, ComputationGraph& cg);
   void BuildComputationGraph(vector<vector<float> >& features, vector<float>& gold_scores, ComputationGraph& cg);
   void BuildComputationGraph(vector<Expression>& features, vector<float>& gold_scores, ComputationGraph& cg);
+  void BuildComputationGraph(vector<Expression>& features, Expression& gold_scores, ComputationGraph& cg);
 
   virtual ~RerankerModel();
   Expression score(vector<float>* input_features, ComputationGraph& cg);

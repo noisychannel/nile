@@ -19,17 +19,17 @@ struct PhraseAlignmentLink {
 
 class KbestConverter {
 public:
-  KbestConverter(string kbest_filename);
-  KbestConverter(string kbest_filename, unsigned max_features);
-  static void ConvertTargetString(KbestHypothesis& hypothesis, vector<string>& target_words);
-  static void ConvertTargetString(KbestHypothesis& hypothesis, vector<string>& target_words, vector<PhraseAlignmentLink>& phrase_alignment);
-  void ConvertFeatureVector(KbestHypothesis& hypothesis, vector<float>& out);
-  void ConvertKbestSet(vector<KbestHypothesis>& hyps, vector<vector<float> >& features, vector<float>& scores);
+  KbestConverter(const string& kbest_filename);
+  KbestConverter(const string& kbest_filename, unsigned max_features);
+  static void ConvertTargetString(const KbestHypothesis& hypothesis, vector<string>& target_words);
+  static void ConvertTargetString(const KbestHypothesis& hypothesis, vector<string>& target_words, vector<PhraseAlignmentLink>& phrase_alignment);
+  void ConvertFeatureVector(const KbestHypothesis& hypothesis, vector<float>& out);
+  void ConvertKbestSet(const vector<KbestHypothesis>& hyps, vector<vector<float> >& features, vector<float>& scores);
   unsigned num_dimensions;
 
 private:
   KbestConverter();
-  void ReadFeatureNames(string kbest_filename, unsigned max_features);
+  void ReadFeatureNames(const string& kbest_filename, unsigned max_features);
   map<string, unsigned> feat2id;
   map<unsigned, string> id2feat;
 

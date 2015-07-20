@@ -18,8 +18,7 @@ RerankerModel::RerankerModel(unsigned num_dimensions) : num_dimensions(num_dimen
 
 RerankerModel::~RerankerModel() {}
 
-Expression RerankerModel::BatchScore(vector<vector<float> >& features, vector<float>& gold_scores, ComputationGraph& cg) {
-  assert (features.size() == gold_scores.size());
+Expression RerankerModel::BatchScore(vector<vector<float> >& features, ComputationGraph& cg) { 
   vector<Expression> model_scores(features.size());
   for (unsigned i = 0; i < features.size(); ++i) {
     model_scores[i] = score(&features[i], cg);
@@ -28,8 +27,7 @@ Expression RerankerModel::BatchScore(vector<vector<float> >& features, vector<fl
   return model_score_vector;
 }
 
-Expression RerankerModel::BatchScore(vector<Expression>& features, vector<float>& gold_scores, ComputationGraph& cg) {
-  assert (features.size() == gold_scores.size());
+Expression RerankerModel::BatchScore(vector<Expression>& features, ComputationGraph& cg) { 
   vector<Expression> model_scores(features.size());
   for (unsigned i = 0; i < features.size(); ++i) {
     model_scores[i] = score(features[i], cg);
@@ -39,7 +37,7 @@ Expression RerankerModel::BatchScore(vector<Expression>& features, vector<float>
 }
 
 void RerankerModel::BuildComputationGraph(vector<vector<float> >& features, vector<float>& gold_scores, ComputationGraph& cg) {
-  Expression model_score_vector = BatchScore(features, gold_scores, cg);
+  Expression model_score_vector = BatchScore(features, cg);
   Expression hyp_probs = softmax(model_score_vector);
   assert (features.size() < LONG_MAX);
   Expression ref_scores = input(cg, {(long)features.size()}, &gold_scores);
@@ -48,11 +46,15 @@ void RerankerModel::BuildComputationGraph(vector<vector<float> >& features, vect
 }
 
 void RerankerModel::BuildComputationGraph(vector<Expression>& features, vector<float>& gold_scores, ComputationGraph& cg) {
-  Expression model_score_vector = BatchScore(features, gold_scores, cg);
+  Expression ref_scores = input(cg, {(long)features.size()}, &gold_scores);
+  BuildComputationGraph(features, ref_scores, cg);
+}
+
+void RerankerModel::BuildComputationGraph(vector<Expression>& features, Expression& gold_scores, ComputationGraph& cg) {
+  Expression model_score_vector = BatchScore(features, cg);
   Expression hyp_probs = softmax(model_score_vector);
   assert (features.size() < LONG_MAX);
-  Expression ref_scores = input(cg, {(long)features.size()}, &gold_scores);
-  Expression ebleu = dot_product(hyp_probs, ref_scores);
+  Expression ebleu = dot_product(hyp_probs, gold_scores);
   Expression loss = -ebleu;
 }
 

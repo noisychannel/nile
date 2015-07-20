@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
   cerr << "Training model...\n";
   vector<KbestHypothesis> hypotheses;
   vector<Expression> hypothesis_features;
-  vector<float> metric_scores;;
+  vector<float> metric_scores;
 
   KbestList* kbest_list = new KbestListInRam(kbest_filename);
   for (unsigned iteration = 0; iteration <= num_iterations; iteration++) {

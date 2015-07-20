@@ -20,6 +20,7 @@
 #include "utils.h"
 #include "reranker.h"
 #include "kbest_converter.h"
+#include "feature_extractor.h"
 
 using namespace std;
 using namespace cnn;
@@ -114,6 +115,18 @@ Trainer* CreateTrainer(Model& model, const po::variables_map& vm) {
   return trainer;
 }
 
+RerankerModel* CreateRerankerModel(unsigned num_dimensions, const po::variables_map& vm) {
+  const unsigned hidden_size = vm["hidden_size"].as<unsigned>();
+  RerankerModel* reranker_model = NULL;
+  if (hidden_size > 0) {
+    reranker_model = new NonlinearRerankerModel(num_dimensions, hidden_size);
+  }
+  else {
+    reranker_model = new LinearRerankerModel(num_dimensions);
+  }
+  return reranker_model;
+}
+
 int main(int argc, char** argv) {
   signal (SIGINT, ctrlc_handler);
 
@@ -139,6 +152,7 @@ int main(int argc, char** argv) {
   ("hidden_size,h", po::value<unsigned>()->default_value(0), "Hidden layer dimensionality. 0 = linear model")
   ("max_features", po::value<unsigned>()->default_value(UINT_MAX), "Maximum number of input features. Later features will be discarded.")
   ("num_iterations,i", po::value<unsigned>()->default_value(UINT_MAX), "Number of epochs to train for")
+  ("gaurav", po::value<vector<string> >()->multitoken(), "Use Gaurav's crazy-ass model. Specify source sentences, source embeddings, target embeddings.")
   ("help", "Display this help message");
 
   po::positional_options_description positional_options;
@@ -146,48 +160,40 @@ int main(int argc, char** argv) {
   positional_options.add("dev_filename", 1);
 
   po::variables_map vm;
-  //try {
-    po::store(po::command_line_parser(argc, argv).options(desc).positional(positional_options).run(), vm);
+  po::store(po::command_line_parser(argc, argv).options(desc).positional(positional_options).run(), vm);
 
-    if (vm.count("help")) {
-      cerr << desc; 
-      ShowUsageAndExit(argv[0]);
+  if (vm.count("help")) {
+    cerr << desc; 
+    ShowUsageAndExit(argv[0]);
+    return 1;
+  }
+
+  po::notify(vm);
+
+  if (vm.count("gaurav")) {
+    vector<string> gaurav_files = vm["gaurav"].as<vector<string> >();
+    if (gaurav_files.size() != 3) {
+      cerr << "Gaurav's model requires exactly three files: source_sentences, source_embeddings, target_embeddings" << endl;
       return 1;
     }
-
-    po::notify(vm);
-    
-  //}
-  /*catch (po::error& e) {
-    cerr << "Error parsing arguments. Exiting..." << endl;
-    return 1;
-  }*/
+  }
 
   const string kbest_filename = vm["kbest_filename"].as<string>();
   const string dev_filename = vm["dev_filename"].as<string>();
-  const unsigned hidden_size = vm["hidden_size"].as<unsigned>();
   const unsigned max_features = vm["max_features"].as<unsigned>();
   const unsigned num_iterations = vm["num_iterations"].as<unsigned>();
 
   cerr << "Running on " << Eigen::nbThreads() << " threads." << endl;
 
   cnn::Initialize(argc, argv);
-  KbestConverter* converter = new KbestConverter(kbest_filename, max_features);
-
-  RerankerModel* reranker_model = NULL;
-  if (hidden_size > 0) {
-    reranker_model = new NonlinearRerankerModel(converter->num_dimensions, hidden_size);
-  }
-  else {
-    reranker_model = new LinearRerankerModel(converter->num_dimensions);
-  }
-
+  KbestFeatureExtractor* feature_extractor = new SimpleKbestFeatureExtractor(kbest_filename, max_features);
+  RerankerModel* reranker_model = CreateRerankerModel(feature_extractor->num_dimensions(), vm);
   Trainer* trainer = CreateTrainer(reranker_model->cnn_model, vm);
 
   cerr << "Training model...\n";
   vector<KbestHypothesis> hypotheses;
-  vector<vector<float> > hypothesis_features(hypotheses.size());
-  vector<float> metric_scores(hypotheses.size());
+  vector<Expression> hypothesis_features; 
+  vector<float> metric_score;
   double dev_score = 0.0;
   double best_dev_score = 0.0;
 
@@ -208,7 +214,9 @@ int main(int argc, char** argv) {
       cerr << num_sentences << "\r";
 
       ComputationGraph cg;
-      converter->ConvertKbestSet(hypotheses, hypothesis_features, metric_scores);
+    
+      hypothesis_features = feature_extractor->ExtractFeatures(hypotheses, cg); 
+      Expression metric_scores = feature_extractor->ExtractMetricScores(hypotheses, cg);
       reranker_model->BuildComputationGraph(hypothesis_features, metric_scores, cg);
 
       loss += as_scalar(cg.forward());
@@ -230,12 +238,14 @@ int main(int argc, char** argv) {
       dev_kbest->Reset();
       while (dev_kbest->NextSet(hypotheses)) {
         dev_sentences++;
-        ComputationGraph cg;
-        converter->ConvertKbestSet(hypotheses, hypothesis_features, metric_scores);
-        reranker_model->BatchScore(hypothesis_features, metric_scores, cg);
+        ComputationGraph cg; 
+        hypothesis_features = feature_extractor->ExtractFeatures(hypotheses, cg);
+        Expression metric_scores = feature_extractor->ExtractMetricScores(hypotheses, cg);
+        reranker_model->BatchScore(hypothesis_features, cg);
         vector<float> scores = as_vector(cg.incremental_forward());
         unsigned best_index = argmax(scores);
-        dev_score += metric_scores[best_index];
+        Expression best_score_expr = pick(metric_scores, best_index);
+        dev_score += as_scalar(cg.incremental_forward());
       }
       dev_score /= dev_sentences;
       cerr << "Dev score: " << dev_score;
@@ -249,7 +259,7 @@ int main(int argc, char** argv) {
         ftruncate(fileno(stdout), 0);
         fseek(stdout, 0, SEEK_SET);
         boost::archive::text_oarchive oa(cout);
-        oa << converter;
+        //oa << converter;
         oa << reranker_model;
       }
     }
@@ -257,7 +267,7 @@ int main(int argc, char** argv) {
 
   if (dev_filename.length() == 0) {
     boost::archive::text_oarchive oa(cout);
-    oa << converter;
+    //oa << converter;
     oa << reranker_model;
   }
 
@@ -266,9 +276,9 @@ int main(int argc, char** argv) {
     kbest_list = NULL;
   }
 
-  if (converter != NULL) {
-    delete converter;
-    converter = NULL;
+  if (feature_extractor != NULL) {
+    delete feature_extractor;
+    feature_extractor = NULL;
   }
 
   if (reranker_model != NULL) {

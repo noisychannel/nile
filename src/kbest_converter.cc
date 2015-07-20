@@ -14,7 +14,7 @@ using namespace std;
 
 // Takes the name of a kbest file name and returns the
 // number of unique feature names found therewithin
-unordered_set<string> get_feature_names(string filename, unsigned max_size) {
+unordered_set<string> get_feature_names(const string& filename, unsigned max_size) {
   unordered_set<string> feature_names;
   if (max_size == 0) {
     return feature_names;
@@ -37,21 +37,21 @@ unordered_set<string> get_feature_names(string filename, unsigned max_size) {
   return feature_names;
 }
 
-unordered_set<string> get_feature_names(string filename) {
+unordered_set<string> get_feature_names(const string& filename) {
   return get_feature_names(filename, UINT_MAX);
 }
 
 KbestConverter::KbestConverter() {}
 
-KbestConverter::KbestConverter(string kbest_filename) {
+KbestConverter::KbestConverter(const string& kbest_filename) {
   ReadFeatureNames(kbest_filename, UINT_MAX);
 }
 
-KbestConverter::KbestConverter(string kbest_filename, unsigned max_features) {
+KbestConverter::KbestConverter(const string& kbest_filename, unsigned max_features) {
   ReadFeatureNames(kbest_filename, max_features);
 }
 
-void KbestConverter::ReadFeatureNames(string kbest_filename, unsigned max_features) {
+void KbestConverter::ReadFeatureNames(const string& kbest_filename, unsigned max_features) {
   cerr << "Reading feature names from k-best list...\n";
   unordered_set<string> feature_names = get_feature_names(kbest_filename, max_features);
   num_dimensions = feature_names.size();
@@ -67,12 +67,12 @@ void KbestConverter::ReadFeatureNames(string kbest_filename, unsigned max_featur
   }
 }
 
-void KbestConverter::ConvertTargetString(KbestHypothesis& hypothesis, vector<string>& target_words) {
+void KbestConverter::ConvertTargetString(const KbestHypothesis& hypothesis, vector<string>& target_words) {
   vector<PhraseAlignmentLink> phrase_alignment;
   ConvertTargetString(hypothesis, target_words, phrase_alignment);
 }
 
-void KbestConverter::ConvertTargetString(KbestHypothesis& hypothesis, vector<string>& target_words, vector<PhraseAlignmentLink>& phrase_alignment) {
+void KbestConverter::ConvertTargetString(const KbestHypothesis& hypothesis, vector<string>& target_words, vector<PhraseAlignmentLink>& phrase_alignment) {
   vector<string> tParts = tokenize(hypothesis.sentence, " ");
   tParts = strip(tParts);
 
@@ -101,7 +101,7 @@ void KbestConverter::ConvertTargetString(KbestHypothesis& hypothesis, vector<str
   }
 }
 
-void KbestConverter::ConvertFeatureVector(KbestHypothesis& hypothesis, vector<float>& out) {
+void KbestConverter::ConvertFeatureVector(const KbestHypothesis& hypothesis, vector<float>& out) {
   assert (num_dimensions > 0);
   assert (out.size() == num_dimensions);
   fill(out.begin(), out.end(), 0.0);
@@ -112,7 +112,7 @@ void KbestConverter::ConvertFeatureVector(KbestHypothesis& hypothesis, vector<fl
   }
 }
 
-void KbestConverter::ConvertKbestSet(vector<KbestHypothesis>& hyps, vector<vector<float> >& features, vector<float>& scores) {
+void KbestConverter::ConvertKbestSet(const vector<KbestHypothesis>& hyps, vector<vector<float> >& features, vector<float>& scores) {
   assert (num_dimensions > 0);
   features.resize(hyps.size());
   scores.resize(hyps.size());
