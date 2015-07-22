@@ -8,7 +8,7 @@ int main() {
     KbestHypothesis hyp = KbestHypothesis::parse(line);
     vector<string> words;
     vector<PhraseAlignmentLink> links;
-    KbestConverter::ConvertTargetString(hyp, words, links);
+    words = hyp.TokenizedTarget(links);
     for (unsigned i = 0; i < words.size(); ++i) {
       cout << i << ": " << words[i] << endl;
     }

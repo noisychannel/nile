@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
       for (KbestHypothesis& hyp : hypotheses) {
         vector<string> tgt_words;
         vector<PhraseAlignmentLink> alignment;
-        converter->ConvertTargetString(hyp, tgt_words, alignment);
+        tgt_words = hyp.TokenizedTarget(alignment);
         vector<unsigned> src = gauravs_model.GetSourceSentence(hyp.sentence_id);
         vector<unsigned> tgt = gauravs_model.ConvertTargetSentence(tgt_words); 
         assert(src.size() > 0);

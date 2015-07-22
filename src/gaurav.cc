@@ -7,7 +7,7 @@
 using namespace std;
 
 unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered_map<string, unsigned>& dict) {
-  cerr << "Loading embeddings from " << filename << " ... ";
+  cerr << "Loading embeddings from " << filename << " ... " << endl;
   FILE *f;
   float len;
   long long words, size, a, b;

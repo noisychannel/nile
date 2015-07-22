@@ -15,4 +15,3 @@ struct Context {
 
 vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& tgt,
                             const vector<PhraseAlignmentLink>& links);
-

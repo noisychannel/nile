@@ -16,18 +16,14 @@ using namespace cnn::expr;
 
 class RerankerModel {
 public:
-  explicit RerankerModel(unsigned num_dimensions);
-  Expression BatchScore(vector<vector<float> >& features, ComputationGraph& cg);
-  Expression BatchScore(vector<Expression>& features, ComputationGraph& cg);
-  void BuildComputationGraph(vector<vector<float> >& features, vector<float>& gold_scores, ComputationGraph& cg);
-  void BuildComputationGraph(vector<Expression>& features, vector<float>& gold_scores, ComputationGraph& cg);
-  void BuildComputationGraph(vector<Expression>& features, Expression& gold_scores, ComputationGraph& cg);
+  explicit RerankerModel(Model* cnn_model, unsigned num_dimensions);
+  Expression BatchScore(const vector<Expression>& features, ComputationGraph& cg);
+  void BuildComputationGraph(const vector<Expression>& features, const vector<Expression>& gold_scores, ComputationGraph& cg);
 
   virtual ~RerankerModel();
-  Expression score(vector<float>* input_features, ComputationGraph& cg);
   virtual Expression score(Expression h, ComputationGraph& cg) = 0;
 
-  Model cnn_model;
+  Model* cnn_model;
 
 protected:
   RerankerModel();
@@ -43,7 +39,7 @@ protected:
 
 class LinearRerankerModel : public RerankerModel {
 public:
-  explicit LinearRerankerModel(unsigned num_dimensions);
+  explicit LinearRerankerModel(Model* cnn_model, unsigned num_dimensions);
   void InitializeParameters();
   Expression score(Expression h, ComputationGraph& cg);
 
@@ -62,7 +58,7 @@ BOOST_CLASS_EXPORT_KEY(LinearRerankerModel)
 
 class NonlinearRerankerModel : public RerankerModel {
 public:
-  explicit NonlinearRerankerModel(unsigned num_dimensions, unsigned hidden_layer_size);
+  explicit NonlinearRerankerModel(Model* cnn_model, unsigned num_dimensions, unsigned hidden_layer_size);
   void InitializeParameters();
   Expression score(Expression h, ComputationGraph& cg);
 

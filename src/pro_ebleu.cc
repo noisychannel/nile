@@ -22,6 +22,8 @@
 #include "kbest_converter.h"
 #include "feature_extractor.h"
 
+#define SAFE_DELETE(p) if ((p) != NULL) { delete (p); (p) = NULL; }
+
 using namespace std;
 using namespace cnn;
 using namespace cnn::expr;
@@ -115,14 +117,14 @@ Trainer* CreateTrainer(Model& model, const po::variables_map& vm) {
   return trainer;
 }
 
-RerankerModel* CreateRerankerModel(unsigned num_dimensions, const po::variables_map& vm) {
+RerankerModel* CreateRerankerModel(Model& cnn_model, unsigned num_dimensions, const po::variables_map& vm) {
   const unsigned hidden_size = vm["hidden_size"].as<unsigned>();
   RerankerModel* reranker_model = NULL;
   if (hidden_size > 0) {
-    reranker_model = new NonlinearRerankerModel(num_dimensions, hidden_size);
+    reranker_model = new NonlinearRerankerModel(&cnn_model, num_dimensions, hidden_size);
   }
   else {
-    reranker_model = new LinearRerankerModel(num_dimensions);
+    reranker_model = new LinearRerankerModel(&cnn_model, num_dimensions);
   }
   return reranker_model;
 }
@@ -182,41 +184,69 @@ int main(int argc, char** argv) {
   const string dev_filename = vm["dev_filename"].as<string>();
   const unsigned max_features = vm["max_features"].as<unsigned>();
   const unsigned num_iterations = vm["num_iterations"].as<unsigned>();
+  Model cnn_model;
 
   cerr << "Running on " << Eigen::nbThreads() << " threads." << endl;
 
   cnn::Initialize(argc, argv);
-  KbestFeatureExtractor* feature_extractor = new SimpleKbestFeatureExtractor(kbest_filename, max_features);
-  RerankerModel* reranker_model = CreateRerankerModel(feature_extractor->num_dimensions(), vm);
-  Trainer* trainer = CreateTrainer(reranker_model->cnn_model, vm);
+  KbestListInRam* train_kbest_list = NULL;
+  KbestListInRam* dev_kbest_list = NULL;
+  KbestListDataView* train_data_view = NULL;
+  KbestListDataView* dev_data_view = NULL;
+  KbestFeatureExtractor* train_feature_extractor = NULL;
+  KbestFeatureExtractor* dev_feature_extractor = NULL;
 
-  cerr << "Training model...\n";
-  vector<KbestHypothesis> hypotheses;
-  vector<Expression> hypothesis_features; 
-  vector<float> metric_score;
-  double dev_score = 0.0;
-  double best_dev_score = 0.0;
-
-  KbestList* kbest_list = new KbestListInRam(kbest_filename);
-  KbestList* dev_kbest = NULL;
-  if (dev_filename.length() > 0) {
-    dev_kbest = new KbestListInRam(dev_filename);
+  train_kbest_list = new KbestListInRam(kbest_filename);
+  if (vm.count("gaurav") > 0) {
+    vector<string> gauravs_shit = vm["gaurav"].as<vector<string> >();
+    string source_file = gauravs_shit[0];
+    string source_embeddings_file = gauravs_shit[1];
+    string target_embeddings_file = gauravs_shit[2];
+    train_data_view = new GauravDataView(train_kbest_list);
+    train_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(train_data_view), cnn_model, source_file, source_embeddings_file, target_embeddings_file);
+  }
+  else {
+    train_data_view = new SimpleDataView(train_kbest_list, max_features);
+    train_feature_extractor = new SimpleKbestFeatureExtractor(dynamic_cast<SimpleDataView*>(train_data_view));
   }
 
+  if (dev_filename.length() > 0) {
+    dev_kbest_list = new KbestListInRam(dev_filename);
+    if (vm.count("gaurav") > 0) {
+      assert (false && "fuck off");
+      //dev_data_view = new GauravDataView(dev_kbest_list);
+      //dev_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(dev_data_view), cnn_model, dev_source_file, source_embeddings_file, target_embeddings_file);
+    }
+    else {
+      dev_data_view = new SimpleDataView(dev_kbest_list, dynamic_cast<SimpleDataView*>(train_data_view));
+      dev_feature_extractor = new SimpleKbestFeatureExtractor(dynamic_cast<SimpleDataView*>(dev_data_view));
+    }
+  }
+
+  RerankerModel* reranker_model = CreateRerankerModel(cnn_model, train_feature_extractor->num_dimensions(), vm);
+  Trainer* trainer = CreateTrainer(cnn_model, vm);
+
+  cerr << "Training model...\n";
+  double dev_score = 0.0;
+  double best_dev_score = 0.0;
+ 
   for (unsigned iteration = 0; iteration <= num_iterations; iteration++) {
     double loss = 0.0;
     unsigned num_sentences = 0;
-    kbest_list->Reset();
-
-    while (kbest_list->NextSet(hypotheses)) {
-      assert (hypotheses.size() > 0);
+    train_feature_extractor->Reset();
+  
+    while (train_feature_extractor->MoveToNextSentence()) {
       num_sentences++;
       cerr << num_sentences << "\r";
-
-      ComputationGraph cg;
     
-      hypothesis_features = feature_extractor->ExtractFeatures(hypotheses, cg); 
-      Expression metric_scores = feature_extractor->ExtractMetricScores(hypotheses, cg);
+      vector<Expression> hypothesis_features;
+      vector<Expression> metric_scores;
+      ComputationGraph cg;
+      for (; train_feature_extractor->MoveToNextHypothesis(); ) {
+        hypothesis_features.push_back(train_feature_extractor->GetFeatures(cg));
+        metric_scores.push_back(train_feature_extractor->GetMetricScore(cg));
+      }
+
       reranker_model->BuildComputationGraph(hypothesis_features, metric_scores, cg);
 
       loss += as_scalar(cg.forward());
@@ -235,18 +265,35 @@ int main(int argc, char** argv) {
     if (dev_filename.length() > 0) {
       dev_score = 0.0;
       unsigned dev_sentences = 0;
-      dev_kbest->Reset();
-      while (dev_kbest->NextSet(hypotheses)) {
+      assert (dev_kbest_list != NULL);
+      dev_feature_extractor->Reset();
+      while (dev_feature_extractor->MoveToNextSentence()) {
         dev_sentences++;
+        vector<Expression> hypothesis_features;
+        vector<Expression> metric_scores;
         ComputationGraph cg; 
-        hypothesis_features = feature_extractor->ExtractFeatures(hypotheses, cg);
-        Expression metric_scores = feature_extractor->ExtractMetricScores(hypotheses, cg);
+        for (; dev_feature_extractor->MoveToNextHypothesis(); ) {
+          hypothesis_features.push_back(dev_feature_extractor->GetFeatures(cg));
+          metric_scores.push_back(dev_feature_extractor->GetMetricScore(cg));
+        }
         reranker_model->BatchScore(hypothesis_features, cg);
         vector<float> scores = as_vector(cg.incremental_forward());
+        concatenate(metric_scores);
+        vector<float> m = as_vector(cg.incremental_forward());
+        /*cerr << "m: ";
+        for (unsigned i = 0; i < m.size(); i++) {
+          cerr << m[i] << " ";
+        }
+        cerr << endl << "s: ";
+        for (unsigned i = 0; i < scores.size(); ++i) {
+          cerr << scores[i] << " ";
+        }
+        cerr << endl;*/
         unsigned best_index = argmax(scores);
-        Expression best_score_expr = pick(metric_scores, best_index);
+        Expression best_score_expr = pick(concatenate(metric_scores), best_index);
         dev_score += as_scalar(cg.incremental_forward());
       }
+      assert (dev_sentences > 0);
       dev_score /= dev_sentences;
       cerr << "Dev score: " << dev_score;
       bool new_best = (dev_score > best_dev_score);
@@ -271,25 +318,14 @@ int main(int argc, char** argv) {
     oa << reranker_model;
   }
 
-  if (kbest_list == NULL) {
-    delete kbest_list;
-    kbest_list = NULL;
-  }
-
-  if (feature_extractor != NULL) {
-    delete feature_extractor;
-    feature_extractor = NULL;
-  }
-
-  if (reranker_model != NULL) {
-    delete reranker_model;
-    reranker_model = NULL;
-  }
-
-  if (trainer != NULL) {
-    delete trainer;
-    trainer = NULL;
-  }
+  SAFE_DELETE(train_feature_extractor);
+  SAFE_DELETE(train_data_view);
+  SAFE_DELETE(train_kbest_list);
+  SAFE_DELETE(dev_feature_extractor);
+  SAFE_DELETE(dev_data_view);
+  SAFE_DELETE(dev_kbest_list);
+  SAFE_DELETE(reranker_model);
+  SAFE_DELETE(trainer);
 
   return 0;
 }

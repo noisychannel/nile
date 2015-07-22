@@ -14,20 +14,12 @@ RerankerModel::RerankerModel() {
   num_dimensions = 0;
 }
 
-RerankerModel::RerankerModel(unsigned num_dimensions) : num_dimensions(num_dimensions) {}
+RerankerModel::RerankerModel(Model* cnn_model, unsigned num_dimensions) : cnn_model(cnn_model), num_dimensions(num_dimensions) {}
 
 RerankerModel::~RerankerModel() {}
 
-Expression RerankerModel::BatchScore(vector<vector<float> >& features, ComputationGraph& cg) { 
-  vector<Expression> model_scores(features.size());
-  for (unsigned i = 0; i < features.size(); ++i) {
-    model_scores[i] = score(&features[i], cg);
-  }
-  Expression model_score_vector = concatenate(model_scores);
-  return model_score_vector;
-}
-
-Expression RerankerModel::BatchScore(vector<Expression>& features, ComputationGraph& cg) { 
+Expression RerankerModel::BatchScore(const vector<Expression>& features, ComputationGraph& cg) {
+  assert (features.size() > 0);
   vector<Expression> model_scores(features.size());
   for (unsigned i = 0; i < features.size(); ++i) {
     model_scores[i] = score(features[i], cg);
@@ -36,44 +28,25 @@ Expression RerankerModel::BatchScore(vector<Expression>& features, ComputationGr
   return model_score_vector;
 }
 
-void RerankerModel::BuildComputationGraph(vector<vector<float> >& features, vector<float>& gold_scores, ComputationGraph& cg) {
+void RerankerModel::BuildComputationGraph(const vector<Expression>& features, const vector<Expression>& metric_scores, ComputationGraph& cg) {
   Expression model_score_vector = BatchScore(features, cg);
   Expression hyp_probs = softmax(model_score_vector);
   assert (features.size() < LONG_MAX);
-  Expression ref_scores = input(cg, {(long)features.size()}, &gold_scores);
-  Expression ebleu = dot_product(hyp_probs, ref_scores);
-  Expression loss = -ebleu;
-}
-
-void RerankerModel::BuildComputationGraph(vector<Expression>& features, vector<float>& gold_scores, ComputationGraph& cg) {
-  Expression ref_scores = input(cg, {(long)features.size()}, &gold_scores);
-  BuildComputationGraph(features, ref_scores, cg);
-}
-
-void RerankerModel::BuildComputationGraph(vector<Expression>& features, Expression& gold_scores, ComputationGraph& cg) {
-  Expression model_score_vector = BatchScore(features, cg);
-  Expression hyp_probs = softmax(model_score_vector);
-  assert (features.size() < LONG_MAX);
+  Expression gold_scores = concatenate(metric_scores);
   Expression ebleu = dot_product(hyp_probs, gold_scores);
   Expression loss = -ebleu;
 }
 
-Expression RerankerModel::score(vector<float>* input_features, ComputationGraph& cg) {
-  assert (num_dimensions > 0);
-  Expression h = input(cg, {num_dimensions}, input_features);
-  return score(h, cg);
+LinearRerankerModel::LinearRerankerModel() : RerankerModel(NULL, 0) {
 }
 
-LinearRerankerModel::LinearRerankerModel() : RerankerModel(0) {
-}
-
-LinearRerankerModel::LinearRerankerModel(unsigned num_dimensions) : RerankerModel(num_dimensions) {
+LinearRerankerModel::LinearRerankerModel(Model* cnn_model, unsigned num_dimensions) : RerankerModel(cnn_model, num_dimensions) {
   InitializeParameters();
 }
 
 void LinearRerankerModel::InitializeParameters() {
   assert (num_dimensions > 0);
-  p_w = cnn_model.add_parameters({1, num_dimensions});
+  p_w = cnn_model->add_parameters({1, num_dimensions});
 }
 
 Expression LinearRerankerModel::score(Expression h, ComputationGraph& cg) {
@@ -82,19 +55,19 @@ Expression LinearRerankerModel::score(Expression h, ComputationGraph& cg) {
   return s;
 }
 
-NonlinearRerankerModel::NonlinearRerankerModel() : RerankerModel(0) {
+NonlinearRerankerModel::NonlinearRerankerModel() : RerankerModel(NULL, 0) {
   hidden_size = 0;
 }
 
-NonlinearRerankerModel::NonlinearRerankerModel(unsigned num_dimensions, unsigned hidden_layer_size) : RerankerModel(num_dimensions), hidden_size(hidden_layer_size) {
+NonlinearRerankerModel::NonlinearRerankerModel(Model* cnn_model, unsigned num_dimensions, unsigned hidden_layer_size) : RerankerModel(cnn_model, num_dimensions), hidden_size(hidden_layer_size) {
   InitializeParameters();
 }
 
 void NonlinearRerankerModel::InitializeParameters() {
   assert (num_dimensions > 0);
-  p_w1 = cnn_model.add_parameters({hidden_size, num_dimensions});
-  p_w2 = cnn_model.add_parameters({1, hidden_size});
-  p_b = cnn_model.add_parameters({hidden_size});
+  p_w1 = cnn_model->add_parameters({hidden_size, num_dimensions});
+  p_w2 = cnn_model->add_parameters({1, hidden_size});
+  p_b = cnn_model->add_parameters({hidden_size});
 }
 
 Expression NonlinearRerankerModel::score(Expression h, ComputationGraph& cg) {

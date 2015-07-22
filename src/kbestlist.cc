@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "kbestlist.h"
 
 KbestList::~KbestList() {}
@@ -104,4 +105,9 @@ bool KbestListInRam::NextSet(vector<KbestHypothesis>& out) {
 
 void KbestListInRam::Reset() {
   it = hypotheses.begin();
+}
+
+void KbestListInRam::Shuffle() {
+  Reset();
+  random_shuffle(hypotheses.begin(), hypotheses.end());
 }

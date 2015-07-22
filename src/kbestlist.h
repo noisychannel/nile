@@ -33,6 +33,7 @@ public:
   ~KbestListInRam();
   bool NextSet(vector<KbestHypothesis>& out);
   void Reset();
+  void Shuffle();
 private:
   bool done_loading;
   SimpleKbestList simple_kbest;
