@@ -69,3 +69,28 @@ map<string, double> parse_feature_string(const string& input) {
   return output;
 }
 
+vector<float> itobit(int x, int vec_len) {
+  std::vector<float> ret;
+  while(x) {
+    if (x & 1)
+      ret.push_back(1.0);
+    else
+      ret.push_back(0.0);
+    x >>= 1;
+  }
+
+  reverse(ret.begin(), ret.end());
+
+  while (ret.size() < vec_len) {
+    ret.push_back(0.0);
+  }
+  return ret;
+}
+
+map<int, vector<float> > create_bit_vector_cache(int start, int end, int vec_len) {
+  map<int, vector<float> > bit_cache;
+  for (int i = start; i <= end; ++i) {
+    bit_cache.insert(make_pair(i, itobit(i, vec_len)));
+  }
+  return bit_cache;
+}
