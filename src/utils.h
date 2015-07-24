@@ -19,3 +19,7 @@ string strip(const string& input);
 vector<string> strip(const vector<string>& input);
 
 map<string, double> parse_feature_string(const string& input);
+
+vector<float> itobit(int x, int vec_len);
+
+map<int, vector<float> > create_bit_vector_cache(int start, int end, int vec_len);
