@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
   KbestListInRam* dev_kbest_list = NULL;
   KbestListDataView* train_data_view = NULL;
   KbestListDataView* dev_data_view = NULL;
-  KbestFeatureExtractor* train_feature_extractor = NULL;
+  KbestFeatureExtractor* train_feature_extractor = NULL; // These two feature extractors should be the same
   KbestFeatureExtractor* dev_feature_extractor = NULL;
 
   train_kbest_list = new KbestListInRam(kbest_filename);
@@ -305,17 +305,21 @@ int main(int argc, char** argv) {
       if (new_best) {
         ftruncate(fileno(stdout), 0);
         fseek(stdout, 0, SEEK_SET);
-        boost::archive::text_oarchive oa(cout);
-        //oa << converter;
+        /*boost::archive::text_oarchive oa(cout);
         oa << reranker_model;
+        oa << train_data_view;
+        oa << train_feature_extractor;
+        oa << cnn_model;*/
       }
     }
   }
 
   if (dev_filename.length() == 0) {
     boost::archive::text_oarchive oa(cout);
-    //oa << converter;
     oa << reranker_model;
+    oa << train_data_view;
+    oa << train_feature_extractor;
+    oa << cnn_model;
   }
 
   SAFE_DELETE(train_feature_extractor);

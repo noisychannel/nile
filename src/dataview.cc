@@ -1,11 +1,13 @@
 #include <climits>
 #include "dataview.h"
+BOOST_CLASS_EXPORT_IMPLEMENT(SimpleDataView)
+BOOST_CLASS_EXPORT_IMPLEMENT(GauravDataView)
 
 KbestListDataView::KbestListDataView() {}
 KbestListDataView::KbestListDataView(KbestList* kbest_list) {}
 KbestListDataView::~KbestListDataView() {}
 
-SimpleDataView::SimpleDataView(KbestList* kbest_list) : max_features(UINT_MAX) {
+SimpleDataView::SimpleDataView(KbestList* kbest_list) : max_features(UINT_MAX), num_features_(0) {
   Initialize(kbest_list);
 }
 
@@ -13,9 +15,11 @@ SimpleDataView::SimpleDataView(KbestList* kbest_list, SimpleDataView* previous) 
   Initialize(kbest_list);
 }
 
-SimpleDataView::SimpleDataView(KbestList* kbest_list, unsigned max_features) : max_features(max_features) {
+SimpleDataView::SimpleDataView(KbestList* kbest_list, unsigned max_features) : max_features(max_features), num_features_(0) {
   Initialize(kbest_list);
 }
+
+SimpleDataView::SimpleDataView() : max_features(0), num_features_(0) {}
 
 void SimpleDataView::Initialize(KbestList* kbest_list) {
   vector<KbestHypothesis> hypotheses;
@@ -107,6 +111,8 @@ Expression SimpleDataView::GetSentenceMetricScoreVector(unsigned sent_index, Com
 unsigned SimpleDataView::num_features() const {
   return num_features_;
 }
+
+GauravDataView::GauravDataView() {}
 
 GauravDataView::GauravDataView(KbestList* kbest_list) {
   Initialize(kbest_list);

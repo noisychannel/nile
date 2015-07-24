@@ -26,12 +26,14 @@ struct Params {
   Parameters* p_bias;
 };
 
+unsigned GetEmbeddingDimension(string filename);
 unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered_map<string, unsigned>& dict);
 
 class GauravsModel {
 public:
   GauravsModel(Model& cnn_model, string src_filename, string src_embedding_filename, string tgt_embedding_filename);
   void ReadSource(string filename);
+  void InitializeEmbeddings(string filename, bool is_source);
   Expression GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg);
   vector<unsigned> GetSourceSentence(const string& sent_id);
   vector<unsigned> ConvertSourceSentence(const string& words);
@@ -40,7 +42,11 @@ public:
   vector<unsigned> ConvertTargetSentence(const vector<string>& words);
   vector<unsigned> ConvertSentence(const vector<string>& words, Dict& dict);
   unsigned OutputDimension() const;
+  const string kUnk = "<unk>";
+  const string kBos = "<s>";
+  const string kEos = "</s>";
 private:
+  GauravsModel();
   void BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out);
   void InitializeParameters(Model& cnn_model);
   unordered_map<string, vector<unsigned> > src_sentences;
@@ -49,11 +55,11 @@ private:
   unsigned src_vocab_size;
   unsigned tgt_vocab_size;
   Dict src_dict;
-  Dict tgt_dict;
-  const string kUnk = "<unk>";
-  unsigned embedding_dimensions;
-  const unsigned hidden_size = 71;
-  const unsigned num_layers = 2;
+  Dict tgt_dict; 
+  unsigned src_embedding_dimension;
+  unsigned tgt_embedding_dimension;
+  unsigned hidden_size;
+  unsigned num_layers;
 
   Parameters* p_R_cl;
   Parameters* p_bias_cl;
@@ -94,4 +100,17 @@ private:
   Expression getRNNRuleContext(
     const vector<unsigned>& src, const vector<unsigned>& tgt,
     const vector<PhraseAlignmentLink>& links, ComputationGraph& hg);
+
+  friend class boost::serialization::access;
+  template<class Archive>
+  void serialize(Archive& ar, const unsigned int) {
+    ar & hidden_size;
+    ar & num_layers;
+    ar & src_vocab_size;
+    ar & tgt_vocab_size;
+    ar & src_embedding_dimension;
+    ar & tgt_embedding_dimension;
+    ar & src_dict;
+    ar & tgt_dict;
+  }
 };

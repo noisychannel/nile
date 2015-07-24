@@ -51,7 +51,6 @@ private:
   template<class Archive>
   void serialize(Archive& ar, const unsigned int) {
     ar & boost::serialization::base_object<RerankerModel>(*this);
-    ar & p_w;
   }
 };
 BOOST_CLASS_EXPORT_KEY(LinearRerankerModel)
@@ -74,9 +73,6 @@ private:
   void serialize(Archive& ar, const unsigned int) {
     ar & boost::serialization::base_object<RerankerModel>(*this);
     ar & hidden_size;
-    ar & p_w1;
-    ar & p_w2;
-    ar & p_b;
   }
 };
 BOOST_CLASS_EXPORT_KEY(NonlinearRerankerModel)

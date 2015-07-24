@@ -19,7 +19,7 @@ OBJDIR=obj
 SRCDIR=src
 
 .PHONY: clean
-all: make_dirs $(BINDIR)/pro $(BINDIR)/rerank $(BINDIR)/pro_ebleu $(BINDIR)/pro_gaurav $(BINDIR)/sandbox
+all: make_dirs $(BINDIR)/rerank $(BINDIR)/pro_ebleu
 
 make_dirs:
 	mkdir -p $(OBJDIR)

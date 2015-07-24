@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
 
   unsigned num_sentences = 0;
   KbestList* kbest_list = new KbestListInRam(kbest_filename);
-  while (kbest_list->NextSet(hypotheses)) {
+  /*while (kbest_list->NextSet(hypotheses)) {
     assert (hypotheses.size() > 0);
     num_sentences++;
     cerr << num_sentences << "\r";
@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
     }
     cout << best->sentence_id << " ||| " << best->sentence << " ||| ";
     cout << "features yay" << " ||| " << best->metric_score << endl;
-  }
+  }*/
 
   if (kbest_list != NULL) {
     delete kbest_list;

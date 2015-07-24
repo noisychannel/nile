@@ -1,10 +1,26 @@
 #include <fstream>
 #include <iostream>
+#include <climits>
 #include "gaurav.h"
 #include "context.h"
 #include "utils.h"
 
 using namespace std;
+
+unsigned GetEmbeddingDimension(string filename) {
+  FILE *f; 
+  long long words, size;
+  f = fopen(filename.c_str(), "rb");
+  if (f == NULL) {
+    printf("Input file not found\n");
+    exit(1);
+  }
+  fscanf(f, "%lld", &words);
+  fscanf(f, "%lld", &size);
+  assert (size >= 0);
+  assert (size <= UINT_MAX);
+  return (unsigned)size;
+}
 
 unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered_map<string, unsigned>& dict) {
   cerr << "Loading embeddings from " << filename << " ... " << endl;
@@ -55,45 +71,88 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
   return embedDict;
 }
 
+GauravsModel::GauravsModel() {
+  src_embeddings = NULL;
+  tgt_embeddings = NULL;
+  src_vocab_size = 0;
+  tgt_vocab_size = 0;
+  p_R_cl = NULL;
+  p_bias_cl = NULL;
+  p_R_cr = NULL;
+  p_bias_cr = NULL;
+  p_R_rs = NULL;
+  p_bias_rs = NULL;
+  p_R_rt = NULL;
+  p_bias_rt = NULL;
+}
+
 GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_embedding_filename, string tgt_embedding_filename) {
-  unordered_map<string, unsigned> tmp_src_dict, tmp_tgt_dict;
-  unordered_map<unsigned, vector<float> > src_embedding_dict = LoadEmbeddings(src_embedding_filename, tmp_src_dict);
-  unordered_map<unsigned, vector<float> > tgt_embedding_dict = LoadEmbeddings(tgt_embedding_filename, tmp_tgt_dict);
-  assert (src_embedding_dict.size() > 0);
-  assert (tgt_embedding_dict.size() > 0);
-  assert (src_embedding_dict.begin()->second.size() > 0);
-  assert (src_embedding_dict.begin()->second.size() == tgt_embedding_dict.begin()->second.size());
+  // XXX: We should read these in from somewhere
+  hidden_size = 71;
+  num_layers = 2;
+  src_vocab_size = 50000;
+  tgt_vocab_size = 50000;
 
-  embedding_dimensions = src_embedding_dict.begin()->second.size();
-  src_vocab_size = src_embedding_dict.size() + 1; // XXX: Hack: +1 for <s>, which isn't usually included in the src vocabulary
-  tgt_vocab_size = tgt_embedding_dict.size() + 1;
+  src_embedding_dimension = GetEmbeddingDimension(src_embedding_filename); 
+  tgt_embedding_dimension = GetEmbeddingDimension(tgt_embedding_filename); 
 
-  BuildDictionary(tmp_src_dict, src_dict);
-  BuildDictionary(tmp_tgt_dict, tgt_dict);
+  src_dict.Convert(kUnk);
+  src_dict.Convert(kBos);
+  src_dict.Convert(kEos);
+  tgt_dict.Convert(kUnk);
+  tgt_dict.Convert(kBos);
+  tgt_dict.Convert(kEos);
 
-  src_dict.Convert("<s>");
-  tgt_dict.Convert("<s>");
-  src_dict.Freeze();
-  tgt_dict.Freeze();
+  ReadSource(src_filename);
 
   InitializeParameters(cnn_model);
 
-  for(unsigned i = 0; i < src_embedding_dict.size(); ++i) {
-    src_embeddings->Initialize(i, src_embedding_dict[i]);
-  }
+  InitializeEmbeddings(src_embedding_filename, true);
+  InitializeEmbeddings(tgt_embedding_filename, false);
+}
 
-  for(unsigned i = 0; i < tgt_embedding_dict.size(); ++i) {
-    tgt_embeddings->Initialize(i, tgt_embedding_dict[i]);
-  }
+void GauravsModel::InitializeEmbeddings(string filename, bool is_source) {
+  Dict* cnn_dict = (is_source ? &src_dict : &tgt_dict);
+  LookupParameters* embeddings = (is_source ? src_embeddings : tgt_embeddings);
+  unsigned max_vocab_size = (is_source ? src_vocab_size : tgt_vocab_size);
+  unsigned embedding_dim = (is_source ? src_embedding_dimension : tgt_embedding_dimension);
 
-  ReadSource(src_filename);
+  assert (cnn_dict != NULL);
+  assert (embeddings != NULL);
+  assert (cnn_dict->size() >= 3);
+  assert (cnn_dict->Contains(kBos));
+  assert (cnn_dict->Contains(kEos));
+  assert (cnn_dict->Contains(kUnk));
+  assert (max_vocab_size > 0);
+  assert (embedding_dim > 0);
+  assert (embeddings->values.size() == max_vocab_size);
+  assert (embeddings->dim.size() == embedding_dim);
+
+  unordered_map<string, unsigned> word_id_map;
+  unordered_map<unsigned, vector<float> > emb_dict = LoadEmbeddings(filename, word_id_map);
+  assert (emb_dict.size() > 0);
+  assert (emb_dict.begin()->second.size() > 0);
+
+  for (auto& it : word_id_map) {
+    if (!cnn_dict->Contains(it.first) && cnn_dict->size() < max_vocab_size) {
+      cnn_dict->Convert(it.first);
+    }
+    if (!cnn_dict->Contains(it.first)) {
+      continue;
+    }
+    unsigned cnn_id = cnn_dict->Convert(it.first);
+    assert (cnn_id < max_vocab_size);
+    vector<float>& embedding = emb_dict[it.second];
+    assert (embedding.size() == embedding_dim);
+    embeddings->Initialize(cnn_id, emb_dict[it.second]); 
+  }
 }
 
 void GauravsModel::InitializeParameters(Model& cnn_model) {
-  builder_context_left = LSTMBuilder(num_layers, embedding_dimensions, hidden_size, &cnn_model);
-  builder_context_right = LSTMBuilder(num_layers, embedding_dimensions, hidden_size, &cnn_model);
-  builder_rule_source = LSTMBuilder(num_layers, embedding_dimensions, hidden_size, &cnn_model);
-  builder_rule_target = LSTMBuilder(num_layers, embedding_dimensions, hidden_size, &cnn_model);
+  builder_context_left = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, &cnn_model);
+  builder_context_right = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, &cnn_model);
+  builder_rule_source = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, &cnn_model);
+  builder_rule_target = LSTMBuilder(num_layers, tgt_embedding_dimension, hidden_size, &cnn_model);
 
   p_R_cl = cnn_model.add_parameters({hidden_size, hidden_size});
   p_bias_cl = cnn_model.add_parameters({hidden_size});
@@ -104,8 +163,8 @@ void GauravsModel::InitializeParameters(Model& cnn_model) {
   p_R_rt = cnn_model.add_parameters({hidden_size, hidden_size});
   p_bias_rt = cnn_model.add_parameters({hidden_size});
 
-  src_embeddings = cnn_model.add_lookup_parameters(src_vocab_size, {embedding_dimensions});
-  tgt_embeddings = cnn_model.add_lookup_parameters(tgt_vocab_size, {embedding_dimensions});
+  src_embeddings = cnn_model.add_lookup_parameters(src_vocab_size, {src_embedding_dimension});
+  tgt_embeddings = cnn_model.add_lookup_parameters(tgt_vocab_size, {tgt_embedding_dimension});
 }
 
 void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out) {

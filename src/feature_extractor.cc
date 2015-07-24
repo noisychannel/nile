@@ -1,7 +1,14 @@
 #include <iostream>
 #include "feature_extractor.h"
+BOOST_CLASS_EXPORT_IMPLEMENT(SimpleKbestFeatureExtractor)
+BOOST_CLASS_EXPORT_IMPLEMENT(GauravsFeatureExtractor)
+//BOOST_CLASS_EXPORT_IMPLEMENT(CombinedFeatureExtractor)
 
 KbestFeatureExtractor::~KbestFeatureExtractor() {}
+
+SimpleKbestFeatureExtractor::SimpleKbestFeatureExtractor() : data(NULL) {
+  Reset();
+}
 
 SimpleKbestFeatureExtractor::SimpleKbestFeatureExtractor(SimpleDataView* data) : data(data) {
   Reset();
@@ -48,6 +55,10 @@ Expression SimpleKbestFeatureExtractor::GetMetricScore(ComputationGraph& cg) con
 
 unsigned SimpleKbestFeatureExtractor::num_dimensions() const {
   return data->num_features();
+}
+
+GauravsFeatureExtractor::GauravsFeatureExtractor() : data(NULL), gauravs_model(NULL) {
+  Reset();
 }
 
 GauravsFeatureExtractor::GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_filename, const string& source_embedding_file, const string& target_embedding_file) : data(data) {
@@ -103,3 +114,12 @@ Expression GauravsFeatureExtractor::GetMetricScore(ComputationGraph& cg) const {
 unsigned GauravsFeatureExtractor::num_dimensions() const {
   return gauravs_model->OutputDimension();
 }
+
+/*CombinedFeatureExtractor::CombinedFeatureExtractor() : simple_extractor(NULL), gauravs_extractor(NULL) {
+  Reset();
+}
+
+void CombinedFeatureExtractor::Reset() {
+  simple_extractor->Reset();
+  gauravs_extractor->Reset();
+}*/

@@ -4,6 +4,7 @@
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/export.hpp>
 
 #include <iostream>
 
@@ -21,6 +22,10 @@ public:
   virtual Expression GetMetricScore(ComputationGraph& cg) const = 0;
   virtual unsigned num_dimensions() const = 0;
   virtual void Reset() = 0;
+
+  friend class boost::serialization::access;
+  template<class Archive>
+  void serialize(Archive& ar, const unsigned int) {}
 };
 
 class SimpleKbestFeatureExtractor : public KbestFeatureExtractor {
@@ -34,13 +39,21 @@ public:
   Expression GetMetricScore(ComputationGraph& cg) const;
   unsigned num_dimensions() const;
 private:
+  SimpleKbestFeatureExtractor();
   unsigned sent_index;
   unsigned hyp_index;
   SimpleDataView* data;
+
+  friend class boost::serialization::access;
+  template<class Archive>
+  void serialize(Archive& ar, const unsigned int) {
+    boost::serialization::void_cast_register<SimpleKbestFeatureExtractor, KbestFeatureExtractor>();
+  } 
 };
+BOOST_CLASS_EXPORT_KEY(SimpleKbestFeatureExtractor)
 
 class GauravsFeatureExtractor : public KbestFeatureExtractor {
-public:
+public: 
   GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_filename, const string& source_embedding_file, const string& target_embedding_file);
   ~GauravsFeatureExtractor();
   bool MoveToNextSentence();
@@ -50,18 +63,44 @@ public:
   unsigned num_dimensions() const; 
   void Reset();
 private:
+  GauravsFeatureExtractor();
   GauravDataView* data;
   GauravsModel* gauravs_model;
   unsigned sent_index;
   unsigned hyp_index;
-};
 
-class CombinedFeatureExtractor : public KbestFeatureExtractor {
+  friend class boost::serialization::access;
+  template<class Archive>
+  void serialize(Archive& ar, const unsigned int) {
+    boost::serialization::void_cast_register<GauravsFeatureExtractor, KbestFeatureExtractor>();
+    ar & gauravs_model;
+  } 
+};
+BOOST_CLASS_EXPORT_KEY(GauravsFeatureExtractor)
+
+/*class CombinedFeatureExtractor : public KbestFeatureExtractor {
 public:
+  CombinedFeatureExtractor(SimpleDataView* simple_data, GauravDataView* gaurav_data, Model& cnn_model, const string& source_filename, const string& source_embedding_file, const string& target_embedding_file);
+  ~CombinedFeatureExtractor();
+  bool MoveToNextSentence();
+  bool MoveToNextHypothesis();
+  Expression GetFeatures(ComputationGraph& cg) const;
+  Expression GetMetricScore(ComputationGraph& cg) const;
+  unsigned num_dimensions() const; 
+  void Reset();
   CombinedFeatureExtractor(const string& kbest_filename, unsigned max_features);
   vector<Expression> ExtractFeatures(const vector<KbestHypothesis>& hyps, ComputationGraph& cg);
-  unsigned num_dimensions() const;  
 private:
+  CombinedFeatureExtractor();
   SimpleKbestFeatureExtractor* simple_extractor;
   GauravsFeatureExtractor* gauravs_extractor;
+
+  friend class boost::serialization::access;
+  template<class Archive>
+  void serialize(Archive& ar, const unsigned int) {
+    boost::serialization::void_cast_register<CombinedFeatureExtractor, KbestFeatureExtractor>();
+    ar & simple_extractor;
+    ar & gauravs_extractor;
+  }
 };
+BOOST_CLASS_EXPORT_KEY(CombinedFeatureExtractor)*/
