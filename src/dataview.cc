@@ -37,6 +37,14 @@ void SimpleDataView::Initialize(KbestList* kbest_list) {
     feature_vectors.push_back(feats);
     metric_scores.push_back(scores);
   }
+
+  for (auto& sent_feat_vec : feature_vectors) {
+    for (auto& hyp_feat_vec : sent_feat_vec) {
+      hyp_feat_vec.resize(num_features_);
+    }
+  }
+
+  assert (feature_vectors[0][0].size() == num_features_);
 }
 
 bool SimpleDataView::AddFeature(const string& feat_name) {
@@ -47,12 +55,13 @@ bool SimpleDataView::AddFeature(const string& feat_name) {
   feat2id[feat_name] = new_id;
   id2feat[new_id] = feat_name;
   num_features_++;
-
+ 
   for (auto& sent_feat_vec : feature_vectors) {
     for (auto& hyp_feat_vec : sent_feat_vec) {
       hyp_feat_vec.resize(num_features_);
     }
   }
+
   return true;
 }
 

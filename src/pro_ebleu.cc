@@ -174,8 +174,8 @@ int main(int argc, char** argv) {
 
   if (vm.count("gaurav")) {
     vector<string> gaurav_files = vm["gaurav"].as<vector<string> >();
-    if (gaurav_files.size() != 3) {
-      cerr << "Gaurav's model requires exactly three files: source_sentences, source_embeddings, target_embeddings" << endl;
+    if (gaurav_files.size() < 3) {
+      cerr << "Gaurav's model requires these files: source_sentences, source_embeddings, target_embeddings [, dev_source]" << endl;
       return 1;
     }
   }
@@ -213,9 +213,13 @@ int main(int argc, char** argv) {
   if (dev_filename.length() > 0) {
     dev_kbest_list = new KbestListInRam(dev_filename);
     if (vm.count("gaurav") > 0) {
-      assert (false && "fuck off");
-      //dev_data_view = new GauravDataView(dev_kbest_list);
-      //dev_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(dev_data_view), cnn_model, dev_source_file, source_embeddings_file, target_embeddings_file);
+      vector<string> gauravs_shit = vm["gaurav"].as<vector<string> >();
+      assert (gauravs_shit.size() >= 4);
+      string source_file = gauravs_shit[3];
+      string source_embeddings_file = gauravs_shit[1];
+      string target_embeddings_file = gauravs_shit[2];
+      dev_data_view = new GauravDataView(dev_kbest_list);
+      dev_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(dev_data_view), cnn_model, source_file, source_embeddings_file, target_embeddings_file);
     }
     else {
       dev_data_view = new SimpleDataView(dev_kbest_list, dynamic_cast<SimpleDataView*>(train_data_view));
@@ -280,15 +284,6 @@ int main(int argc, char** argv) {
         vector<float> scores = as_vector(cg.incremental_forward());
         concatenate(metric_scores);
         vector<float> m = as_vector(cg.incremental_forward());
-        /*cerr << "m: ";
-        for (unsigned i = 0; i < m.size(); i++) {
-          cerr << m[i] << " ";
-        }
-        cerr << endl << "s: ";
-        for (unsigned i = 0; i < scores.size(); ++i) {
-          cerr << scores[i] << " ";
-        }
-        cerr << endl;*/
         unsigned best_index = argmax(scores);
         Expression best_score_expr = pick(concatenate(metric_scores), best_index);
         dev_score += as_scalar(cg.incremental_forward());
@@ -305,11 +300,11 @@ int main(int argc, char** argv) {
       if (new_best) {
         ftruncate(fileno(stdout), 0);
         fseek(stdout, 0, SEEK_SET);
-        /*boost::archive::text_oarchive oa(cout);
+        boost::archive::text_oarchive oa(cout);
         oa << reranker_model;
         oa << train_data_view;
         oa << train_feature_extractor;
-        oa << cnn_model;*/
+        oa << cnn_model;
       }
     }
   }

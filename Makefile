@@ -80,7 +80,7 @@ $(BINDIR)/pro_ebleu: $(OBJDIR)/pro_ebleu.o $(OBJDIR)/kbestlist.o $(OBJDIR)/utils
 $(BINDIR)/pro_gaurav: $(OBJDIR)/pro_gaurav.o $(OBJDIR)/gaurav.o $(OBJDIR)/utils.o $(OBJDIR)/reranker.o $(OBJDIR)/kbest_converter.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o $(OBJDIR)/context.o
 	g++ $(LIBS) $^ -o $@ $(FINAL)
 
-$(BINDIR)/rerank: $(OBJDIR)/rerank.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbestlist.o $(OBJDIR)/reranker.o $(OBJDIR)/kbest_converter.o
+$(BINDIR)/rerank: $(OBJDIR)/rerank.o $(OBJDIR)/kbestlist.o $(OBJDIR)/utils.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/reranker.o $(OBJDIR)/kbest_converter.o $(OBJDIR)/feature_extractor.o $(OBJDIR)/dataview.o $(OBJDIR)/gaurav.o $(OBJDIR)/context.o
 	g++ $(LIBS) $^ -o $@ $(FINAL)
 
 $(BINDIR)/sandbox: $(OBJDIR)/sandbox.o $(OBJDIR)/kbest_hypothesis.o $(OBJDIR)/kbest_converter.o $(OBJDIR)/utils.o

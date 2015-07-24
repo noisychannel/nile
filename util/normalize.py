@@ -13,7 +13,11 @@ feat_vars = defaultdict(float)
 
 print >>sys.stderr, 'Computing means...'
 f = open(args.kbest)
+n = 0
 for line in f:
+	n += 1
+	if n % 50000 == 0:
+		sys.stderr.write('.')
 	parts = line.split('|||')
 	features = parts[2].strip()
 	features = features.split()
@@ -24,6 +28,7 @@ for line in f:
 		feat_sums[k] += v
 		feat_counts[k] += 1
 f.close()
+print >>sys.stderr
 
 print >>sys.stderr, 'Normalizing...'
 for k in feat_sums.keys():
@@ -31,7 +36,11 @@ for k in feat_sums.keys():
 
 print >>sys.stderr, 'Computing variances...'
 f = open(args.kbest)
+n = 0
 for line in f:
+	n += 1
+	if n % 50000 == 0:
+		sys.stderr.write('.')
 	parts = line.split('|||')
 	features = parts[2].strip()
 	features = features.split()
@@ -41,6 +50,7 @@ for line in f:
 	for k, v in features.iteritems():
 		feat_vars[k] += (v - feat_sums[k]) ** 2
 f.close()
+print >>sys.stderr
 
 print >>sys.stderr, 'Normalizing...'
 for k in feat_vars.keys():
@@ -48,7 +58,11 @@ for k in feat_vars.keys():
 
 print >>sys.stderr, 'Output...'
 f = open(args.kbest)
+n = 0
 for line in f:
+	n += 1
+	if n % 50000 == 0:
+		sys.stderr.write('.')
 	parts = line.split('|||')
 	parts = [part.strip() for part in parts]
 	features = parts[2].strip()
@@ -59,4 +73,5 @@ for line in f:
 	parts[2] = ' '.join('%s=%f' % (k, v) for k, v in features.iteritems())
 	print ' ||| '.join(parts)
 f.close()
+print >>sys.stderr
 

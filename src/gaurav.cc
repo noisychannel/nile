@@ -89,7 +89,7 @@ GauravsModel::GauravsModel() {
 GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_embedding_filename, string tgt_embedding_filename) {
   // XXX: We should read these in from somewhere
   hidden_size = 71;
-  num_layers = 2;
+  num_layers = 1;
   src_vocab_size = 50000;
   tgt_vocab_size = 50000;
 

@@ -6,6 +6,7 @@
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/map.hpp>
+#include <boost/program_options.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -16,10 +17,12 @@
 
 #include "kbestlist.h"
 #include "reranker.h"
-#include "kbest_converter.h"
+#include "feature_extractor.h"
+#include "dataview.h"
 
 using namespace std;
 using namespace cnn;
+namespace po = boost::program_options;
 
 bool ctrlc_pressed = false;
 void ctrlc_handler(int signal) {
@@ -31,9 +34,8 @@ void ctrlc_handler(int signal) {
   }
 }
 
-int main(int argc, char** argv) {
-  if (argc < 3) {
-    cerr << "Usage: " << argv[0] << " model kbest.txt" << endl;
+void ShowUsageAndExit(string program_name) {
+    cerr << "Usage: " << program_name << " model kbest.txt" << endl;
     cerr << endl;
     cerr << "Where kbest.txt contains lines of them form" << endl;
     cerr << "sentence_id ||| hypothesis ||| features ||| ... " << endl;
@@ -43,29 +45,59 @@ int main(int argc, char** argv) {
     cerr << "Here's an example of a valid input line:" << endl;
     cerr << "0 ||| <s> ovatko ne syyt tai ? </s> ||| MaxLexEgivenF=1.26902 Glue=2 LanguageModel=-14.2355 SampleCountF=9.91427 ||| -1.32408" << endl;
     exit(1);
+}
+
+int main(int argc, char** argv) {
+  po::options_description desc("description");
+  desc.add_options()
+  ("kbest_filename", po::value<string>()->required(), "Input k-best hypothesis file")
+  ("model_filename", po::value<string>()->required(), "Reranker model")
+  ("source_filename", po::value<string>()->default_value(""), "(Optional) List of source sentences corresponding to the input k-best list. Only required if using Gaurav's Model")
+  ("help", "Display this help message");
+
+  po::positional_options_description positional_options;
+  positional_options.add("kbest_filename", 1);
+  positional_options.add("model_filename", 1);
+  positional_options.add("source_filename", 1);
+
+  po::variables_map vm;
+  po::store(po::command_line_parser(argc, argv).options(desc).positional(positional_options).run(), vm);
+
+ if (vm.count("help")) {
+    cerr << desc;
+    ShowUsageAndExit(argv[0]);
+    return 1;
   }
+
+  po::notify(vm);
+
   signal (SIGINT, ctrlc_handler);
-  const string model_filename = argv[1];
-  const string kbest_filename = argv[2];
+  const string model_filename = vm["model_filename"].as<string>();
+  const string kbest_filename = vm["kbest_filename"].as<string>();
+  const string source_filename = vm["source_filename"].as<string>();
 
   cerr << "Building model...\n"; 
   cnn::Initialize(argc, argv);
 
-  KbestConverter* converter = NULL;
   RerankerModel* reranker_model = NULL;
+  KbestList* kbest_list = new KbestListInRam(kbest_filename);
+  KbestListDataView* data_view = NULL;
+  KbestFeatureExtractor* feature_extractor = NULL;
+  Model cnn_model;
 
   cerr << "Reading model...\n";
   ifstream model_file(model_filename);
   boost::archive::text_iarchive ia(model_file);
-  ia >> converter;
   ia >> reranker_model;
+  ia >> data_view;
+  ia >> feature_extractor;
+  ia >> cnn_model;
 
   vector<KbestHypothesis> hypotheses;
   vector<vector<float> > hypothesis_features(hypotheses.size());
   vector<float> metric_scores(hypotheses.size()); //unused
 
   unsigned num_sentences = 0;
-  KbestList* kbest_list = new KbestListInRam(kbest_filename);
   /*while (kbest_list->NextSet(hypotheses)) {
     assert (hypotheses.size() > 0);
     num_sentences++;
@@ -90,16 +122,6 @@ int main(int argc, char** argv) {
   if (kbest_list != NULL) {
     delete kbest_list;
     kbest_list = NULL;
-  }
-
-  if (converter != NULL) {
-    delete converter;
-    converter = NULL;
-  }
-
-  if (reranker_model != NULL) {
-    delete reranker_model;
-    reranker_model = NULL;
   }
  
   return 0;

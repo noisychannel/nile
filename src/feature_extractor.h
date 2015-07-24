@@ -1,3 +1,4 @@
+#pragma once
 #include "cnn/nodes.h"
 #include "cnn/cnn.h"
 #include "cnn/expr.h"
