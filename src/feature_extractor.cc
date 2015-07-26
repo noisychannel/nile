@@ -61,13 +61,18 @@ GauravsFeatureExtractor::GauravsFeatureExtractor() : data(NULL), gauravs_model(N
   Reset();
 }
 
-GauravsFeatureExtractor::GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_filename, const string& source_embedding_file, const string& target_embedding_file) : data(data) {
+GauravsFeatureExtractor::GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_filename, const string& source_embedding_file, const string& target_embedding_file) : data(data), has_parent(false) {
   gauravs_model = new GauravsModel(cnn_model, source_filename, source_embedding_file, target_embedding_file);
   Reset();
 }
 
+GauravsFeatureExtractor::GauravsFeatureExtractor(GauravDataView* data, GauravsFeatureExtractor* parent) : data(data), has_parent(true) {
+  gauravs_model = parent->gauravs_model;
+  Reset(); 
+}
+
 GauravsFeatureExtractor::~GauravsFeatureExtractor() {
-  if (gauravs_model != NULL) {
+  if (has_parent && gauravs_model != NULL) {
     delete gauravs_model;
     gauravs_model = NULL;
   }

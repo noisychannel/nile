@@ -19,7 +19,6 @@
 #include "kbestlist.h"
 #include "utils.h"
 #include "reranker.h"
-#include "kbest_converter.h"
 #include "feature_extractor.h"
 
 #define SAFE_DELETE(p) if ((p) != NULL) { delete (p); (p) = NULL; }
@@ -219,7 +218,7 @@ int main(int argc, char** argv) {
       string source_embeddings_file = gauravs_shit[1];
       string target_embeddings_file = gauravs_shit[2];
       dev_data_view = new GauravDataView(dev_kbest_list);
-      dev_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(dev_data_view), cnn_model, source_file, source_embeddings_file, target_embeddings_file);
+      dev_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(dev_data_view), dynamic_cast<GauravsFeatureExtractor*>(train_feature_extractor));
     }
     else {
       dev_data_view = new SimpleDataView(dev_kbest_list, dynamic_cast<SimpleDataView*>(train_data_view));

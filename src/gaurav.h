@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include "kbest_converter.h"
 #include "cnn/dict.h"
 #include "cnn/expr.h"
 #include "cnn/lstm.h"

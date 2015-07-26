@@ -1,8 +1,7 @@
 #pragma once
 #include<vector>
 #include<string>
-
-#include "kbest_converter.h"
+#include "kbest_hypothesis.h"
 
 using namespace std;
 
