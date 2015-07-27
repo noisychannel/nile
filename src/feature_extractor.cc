@@ -91,6 +91,9 @@ bool GauravsFeatureExtractor::MoveToNextSentence() {
     return false;
   }
   hyp_index = -1;
+  //Reset cache
+  srcExpCache.clear();
+  tgtExpCache.clear();
   return true;
 }
 
@@ -104,13 +107,14 @@ bool GauravsFeatureExtractor::MoveToNextHypothesis() {
 }
 
 Expression GauravsFeatureExtractor::GetFeatures(ComputationGraph& cg) const {
+  //cerr << "CG : Num nodes = " << cg.nodes.size() << " ||| " << cg.parameter_nodes.size() << endl;
   string sent_id = data->GetSentenceId(sent_index);
   vector<string> src_words = data->GetSourceString(sent_id);
   vector<unsigned> src = gauravs_model->ConvertSourceSentence(src_words);
   vector<string> tgt_words = data->GetTargetString(sent_index, hyp_index);
   vector<unsigned> tgt = gauravs_model->ConvertTargetSentence(tgt_words);
   vector<PhraseAlignmentLink> alignment = data->GetAlignment(sent_index, hyp_index);
-  return gauravs_model->GetRuleContext(src, tgt, alignment, cg);
+  return gauravs_model->GetRuleContext(src, tgt, alignment, cg, srcExpCache, tgtExpCache);
 }
 
 Expression GauravsFeatureExtractor::GetMetricScore(ComputationGraph& cg) const {

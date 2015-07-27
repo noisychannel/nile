@@ -68,6 +68,8 @@ private:
   GauravsFeatureExtractor();
   GauravDataView* data;
   GauravsModel* gauravs_model;
+  mutable map<tuple<unsigned, unsigned>, Expression> srcExpCache;
+  mutable map<tuple<unsigned, unsigned>, Expression> tgtExpCache;
   bool has_parent;
   unsigned sent_index;
   unsigned hyp_index;
