@@ -55,7 +55,7 @@ BOOST_CLASS_EXPORT_KEY(SimpleKbestFeatureExtractor)
 
 class GauravsFeatureExtractor : public KbestFeatureExtractor {
 public: 
-  GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_filename, const string& source_embedding_file, const string& target_embedding_file);
+  GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file);
   GauravsFeatureExtractor(GauravDataView* data, GauravsFeatureExtractor* parent);
   ~GauravsFeatureExtractor();
   bool MoveToNextSentence();

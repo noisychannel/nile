@@ -61,8 +61,8 @@ GauravsFeatureExtractor::GauravsFeatureExtractor() : data(NULL), gauravs_model(N
   Reset();
 }
 
-GauravsFeatureExtractor::GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_filename, const string& source_embedding_file, const string& target_embedding_file) : data(data), has_parent(false) {
-  gauravs_model = new GauravsModel(cnn_model, source_filename, source_embedding_file, target_embedding_file);
+GauravsFeatureExtractor::GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file) : data(data), has_parent(false) {
+  gauravs_model = new GauravsModel(cnn_model, source_embedding_file, target_embedding_file);
   Reset();
 }
 
@@ -105,7 +105,8 @@ bool GauravsFeatureExtractor::MoveToNextHypothesis() {
 
 Expression GauravsFeatureExtractor::GetFeatures(ComputationGraph& cg) const {
   string sent_id = data->GetSentenceId(sent_index);
-  vector<unsigned> src = gauravs_model->GetSourceSentence(sent_id);
+  vector<string> src_words = data->GetSourceString(sent_id);
+  vector<unsigned> src = gauravs_model->ConvertSourceSentence(src_words);
   vector<string> tgt_words = data->GetTargetString(sent_index, hyp_index);
   vector<unsigned> tgt = gauravs_model->ConvertTargetSentence(tgt_words);
   vector<PhraseAlignmentLink> alignment = data->GetAlignment(sent_index, hyp_index);

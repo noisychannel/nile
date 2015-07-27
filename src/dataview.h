@@ -61,18 +61,22 @@ BOOST_CLASS_EXPORT_KEY(SimpleDataView)
 
 class GauravDataView : public KbestListDataView {
 public:
-  explicit GauravDataView(KbestList* kbest_list);
+  explicit GauravDataView(KbestList* kbest_list, const string& source_filename);
   ~GauravDataView();
   unsigned size() const;
   unsigned num_hyps(unsigned sent_index) const;
   string GetSentenceId(unsigned sent_index) const;
+  vector<string> GetSourceString(unsigned sent_index) const;
+  vector<string> GetSourceString(const string& sent_id) const;
   vector<string> GetTargetString(unsigned sent_index, unsigned hyp_index) const;
   vector<PhraseAlignmentLink> GetAlignment(unsigned sent_index, unsigned hyp_index) const;
   Expression GetMetricScore(unsigned sent_index, unsigned hyp_index, ComputationGraph& cg) const;
 private:
   GauravDataView();
-  void Initialize(KbestList* kbest_list); 
+  void ReadSource(string filename);
+  void Initialize(KbestList* kbest_list, const string& source_filename); 
   vector<string> sentence_ids;
+  unordered_map<string, vector<string> > src_sentences;
   vector<vector<vector<string> > > target_strings;
   vector<vector<vector<PhraseAlignmentLink> > > alignments;
   vector<vector<float> > metric_scores;

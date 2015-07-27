@@ -86,7 +86,7 @@ GauravsModel::GauravsModel() {
   p_bias_rt = NULL;
 }
 
-GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_embedding_filename, string tgt_embedding_filename) {
+GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filename, const string& tgt_embedding_filename) {
   // XXX: We should read these in from somewhere
   hidden_size = 71;
   num_layers = 1;
@@ -101,9 +101,7 @@ GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_emb
   src_dict.Convert(kEos);
   tgt_dict.Convert(kUnk);
   tgt_dict.Convert(kBos);
-  tgt_dict.Convert(kEos);
-
-  ReadSource(src_filename);
+  tgt_dict.Convert(kEos); 
 
   InitializeParameters(cnn_model);
 
@@ -111,7 +109,7 @@ GauravsModel::GauravsModel(Model& cnn_model, string src_filename, string src_emb
   InitializeEmbeddings(tgt_embedding_filename, false);
 }
 
-void GauravsModel::InitializeEmbeddings(string filename, bool is_source) {
+void GauravsModel::InitializeEmbeddings(const string& filename, bool is_source) {
   Dict* cnn_dict = (is_source ? &src_dict : &tgt_dict);
   LookupParameters* embeddings = (is_source ? src_embeddings : tgt_embeddings);
   unsigned max_vocab_size = (is_source ? src_vocab_size : tgt_vocab_size);
@@ -182,18 +180,6 @@ void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Di
   //out.Freeze();
 }
 
-void GauravsModel::ReadSource(string filename) {
-  ifstream f(filename);
-  for (string line; getline(f, line);) {
-    vector<string> pieces = tokenize(line, "|||");
-    pieces = strip(pieces);
-    assert (pieces.size() == 2);
-    assert (src_sentences.find(pieces[0]) == src_sentences.end());
-    src_sentences[pieces[0]] = ConvertSourceSentence(pieces[1]);
-  }
-  f.close();
-}
-
 Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg) {
   assert(src.size() > 0);
   vector<unsigned> src2 = src;
@@ -243,11 +229,6 @@ vector<unsigned> GauravsModel::ConvertSentence(const vector<string>& words, Dict
     }
   }
   return r;
-}
-
-vector<unsigned> GauravsModel::GetSourceSentence(const string& sent_id) {
-   assert (src_sentences.find(sent_id) != src_sentences.end());
-  return src_sentences[sent_id];
 }
 
 unsigned GauravsModel::OutputDimension() const {

@@ -123,13 +123,26 @@ unsigned SimpleDataView::num_features() const {
 
 GauravDataView::GauravDataView() {}
 
-GauravDataView::GauravDataView(KbestList* kbest_list) {
-  Initialize(kbest_list);
+GauravDataView::GauravDataView(KbestList* kbest_list, const string& source_filename) {
+  Initialize(kbest_list, source_filename);
 }
 
 GauravDataView::~GauravDataView() {}
 
-void GauravDataView::Initialize(KbestList* kbest_list) {
+void GauravDataView::ReadSource(string filename) {
+  ifstream f(filename);
+  for (string line; getline(f, line);) {
+    vector<string> pieces = tokenize(line, "|||");
+    pieces = strip(pieces);
+    assert (pieces.size() == 2);
+    assert (src_sentences.find(pieces[0]) == src_sentences.end());
+    src_sentences[pieces[0]] = tokenize(pieces[1], " ");
+  }
+  f.close();
+}
+
+void GauravDataView::Initialize(KbestList* kbest_list, const string& source_filename) {
+  ReadSource(source_filename);
   vector<KbestHypothesis> hypotheses;
   while (kbest_list->NextSet(hypotheses)) {
     assert (hypotheses.size() > 0);
@@ -151,6 +164,9 @@ void GauravDataView::Initialize(KbestList* kbest_list) {
     assert (sent_alignments.size() == sent_target_strings.size());
     assert (sent_alignments.size() == sent_metric_scores.size());
   }
+  for (const string& id : sentence_ids) {
+    assert (src_sentences.find(id) != src_sentences.end());
+  }
   assert (alignments.size() == target_strings.size());
   assert (alignments.size() == sentence_ids.size());
   assert (alignments.size() == metric_scores.size());
@@ -168,6 +184,16 @@ unsigned GauravDataView::num_hyps(unsigned sent_index) const {
 string GauravDataView::GetSentenceId(unsigned sent_index) const {
   assert (sent_index < target_strings.size());
   return sentence_ids[sent_index];
+}
+
+vector<string> GauravDataView::GetSourceString(unsigned sent_index) const {
+  return GetSourceString(GetSentenceId(sent_index));
+}
+
+vector<string> GauravDataView::GetSourceString(const string& sent_id) const {
+  auto it = src_sentences.find(sent_id);
+  assert (it != src_sentences.end());
+  return it->second;
 }
 
 vector<string> GauravDataView::GetTargetString(unsigned sent_index, unsigned hyp_index) const {

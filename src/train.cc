@@ -201,8 +201,8 @@ int main(int argc, char** argv) {
     string source_file = gauravs_shit[0];
     string source_embeddings_file = gauravs_shit[1];
     string target_embeddings_file = gauravs_shit[2];
-    train_data_view = new GauravDataView(train_kbest_list);
-    train_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(train_data_view), cnn_model, source_file, source_embeddings_file, target_embeddings_file);
+    train_data_view = new GauravDataView(train_kbest_list, source_file);
+    train_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(train_data_view), cnn_model, source_embeddings_file, target_embeddings_file);
   }
   else {
     train_data_view = new SimpleDataView(train_kbest_list, max_features);
@@ -217,7 +217,7 @@ int main(int argc, char** argv) {
       string source_file = gauravs_shit[3];
       string source_embeddings_file = gauravs_shit[1];
       string target_embeddings_file = gauravs_shit[2];
-      dev_data_view = new GauravDataView(dev_kbest_list);
+      dev_data_view = new GauravDataView(dev_kbest_list, source_file);
       dev_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(dev_data_view), dynamic_cast<GauravsFeatureExtractor*>(train_feature_extractor));
     }
     else {
