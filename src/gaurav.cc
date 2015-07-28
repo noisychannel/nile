@@ -1,3 +1,7 @@
+//TODO:
+//1. Reverse the direction of the right context RNN
+//2. Use V.c from the output of the RNNs instead of c
+
 #include <fstream>
 #include <iostream>
 #include <climits>
@@ -180,7 +184,10 @@ void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Di
   //out.Freeze();
 }
 
-Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg) {
+Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt,
+    const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg,
+    map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
+    map<tuple<unsigned, unsigned>, Expression>& tgtExpCache) {
   assert(src.size() > 0);
   vector<unsigned> src2 = src;
   vector<unsigned> tgt2 = tgt;
@@ -196,7 +203,7 @@ Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vecto
     link.tgt_end++;
   }
 
-  return getRNNRuleContext(src2, tgt2, alignment2, cg);
+  return getRNNRuleContext(src2, tgt2, alignment2, cg, srcExpCache, tgtExpCache);
 }
 
 vector<unsigned> GauravsModel::ConvertSourceSentence(const string& sentence) {
@@ -237,58 +244,91 @@ unsigned GauravsModel::OutputDimension() const {
 
 Expression GauravsModel::getRNNRuleContext(
     const vector<unsigned>& src, const vector<unsigned>& tgt,
-    const vector<PhraseAlignmentLink>& links, ComputationGraph& hg) {
+    const vector<PhraseAlignmentLink>& links, ComputationGraph& hg,
+    map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
+    map<tuple<unsigned, unsigned>, Expression>& tgtExpCache) {
 
   assert (links.size() > 0);
   assert (src.size() > 0);
   assert (tgt.size() > 0);
   vector<Context> contexts = getContext(src, tgt, links);
-  return BuildRuleSequenceModel(contexts, hg);
+  return BuildRuleSequenceModel(contexts, hg, srcExpCache, tgtExpCache);
 }
 
-Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg) {
+Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg,
+    map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
+    map<tuple<unsigned, unsigned>, Expression>& tgtExpCache) {
   assert (cSeq.size() > 0);
+  //map<tuple<unsigned, unsigned>, Expression> srcExpCache;
+  //map<tuple<unsigned, unsigned>, Expression> tgtExpCache;
   //TODO; Is this count right ?
   vector<Expression> ruleEmbeddings;
   for (unsigned i = 0; i < cSeq.size(); ++i) {
     const Context& currentContext = cSeq[i];
-    Expression currentEmbedding = BuildRNNGraph(currentContext, hg);
+    Expression currentEmbedding = BuildRNNGraph(currentContext, hg, srcExpCache, tgtExpCache);
     ruleEmbeddings.push_back(currentEmbedding);
+    //cerr << srcExpCache.size() << " src entries cached" << endl;
+    //cerr << tgtExpCache.size() << " tgt entries cached" << endl;
   }
   assert (ruleEmbeddings.size() > 0);
   assert (ruleEmbeddings.size() == cSeq.size());
   return sum(ruleEmbeddings);
 }
 
-Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg) {
-  //Initialize builders
-  builder_context_left.new_graph(hg);
-  builder_context_right.new_graph(hg);
-  builder_rule_source.new_graph(hg);
-  builder_rule_target.new_graph(hg);
-  // Tell the builder that we are about to start a recurrence
-  builder_context_left.start_new_sequence();
-  builder_context_right.start_new_sequence();
-  builder_rule_source.start_new_sequence();
-  builder_rule_target.start_new_sequence();
-  vector<Expression> convVector;
-  // Create the symbolic graph for the unrolled recurrent network
-  vector<Expression> hiddens_cl = Recurrence(c.leftContext, hg,
-                              {src_embeddings, p_R_cl, p_bias_cl}, builder_context_left);
-  vector<Expression> hiddens_cr = Recurrence(c.rightContext, hg,
-                              {src_embeddings, p_R_cr, p_bias_cr}, builder_context_right);
-  vector<Expression> hiddens_rs = Recurrence(c.sourceRule, hg,
-                              {src_embeddings, p_R_rs, p_bias_rs}, builder_rule_source);
-  vector<Expression> hiddens_rt = Recurrence(c.targetRule, hg,
-                              {tgt_embeddings, p_R_rt, p_bias_rt}, builder_rule_target);
-  assert (hiddens_cl.size() > 0);
-  assert (hiddens_cr.size() > 0);
-  assert (hiddens_rs.size() > 0);
-  assert (hiddens_rt.size() > 0);
-  convVector.push_back(hiddens_cl.back());
-  convVector.push_back(hiddens_cr.back());
-  convVector.push_back(hiddens_rs.back());
-  convVector.push_back(hiddens_rt.back());
+Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg,
+    map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
+    map<tuple<unsigned, unsigned>, Expression>& tgtExpCache) {
+
+  Expression srcConv;
+  auto srcIt = srcExpCache.find(c.srcIdx);
+  //cerr << get<0>(c.srcIdx) << "," << get<1>(c.srcIdx) << endl;
+  //First check to see if the source is cached
+  if (srcIt != srcExpCache.end()) {
+    srcConv = srcIt->second;
+  }
+  else {
+    vector<Expression> convVector;
+    //Initialize builders
+    builder_context_left.new_graph(hg);
+    builder_context_right.new_graph(hg);
+    builder_rule_source.new_graph(hg);
+    // Tell the builder that we are about to start a recurrence
+    builder_context_left.start_new_sequence();
+    builder_context_right.start_new_sequence();
+    builder_rule_source.start_new_sequence();
+    // Create the symbolic graph for the unrolled recurrent network
+    vector<Expression> hiddens_cl = Recurrence(c.leftContext, hg,
+                                {src_embeddings, p_R_cl, p_bias_cl}, builder_context_left);
+    vector<Expression> hiddens_cr = Recurrence(c.rightContext, hg,
+                                {src_embeddings, p_R_cr, p_bias_cr}, builder_context_right);
+    vector<Expression> hiddens_rs = Recurrence(c.sourceRule, hg,
+                                {src_embeddings, p_R_rs, p_bias_rs}, builder_rule_source);
+    assert (hiddens_cl.size() > 0);
+    assert (hiddens_cr.size() > 0);
+    assert (hiddens_rs.size() > 0);
+    convVector.push_back(hiddens_cl.back());
+    convVector.push_back(hiddens_cr.back());
+    convVector.push_back(hiddens_rs.back());
+    srcConv = sum(convVector);
+    srcExpCache[c.srcIdx] = srcConv;
+    //srcExpCache.insert(make_pair(c.srcIdx, srcConv));
+  }
+
+  Expression tgtConv;
+  auto tgtIt = tgtExpCache.find(c.tgtIdx);
+  if (tgtIt != tgtExpCache.end()) {
+    tgtConv = tgtIt->second;
+  }
+  else {
+    builder_rule_target.new_graph(hg);
+    builder_rule_target.start_new_sequence();
+    vector<Expression> hiddens_rt = Recurrence(c.targetRule, hg,
+                                {tgt_embeddings, p_R_rt, p_bias_rt}, builder_rule_target);
+    assert (hiddens_rt.size() > 0);
+    tgtConv = hiddens_rt.back();
+    tgtExpCache.insert(make_pair(c.tgtIdx, tgtConv));
+  }
+  vector<Expression> convVector{srcConv, tgtConv};
   Expression conv = sum(convVector);
   return conv;
 }

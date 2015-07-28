@@ -10,6 +10,8 @@ struct Context {
   const vector<unsigned> rightContext;
   const vector<unsigned> sourceRule;
   const vector<unsigned> targetRule;
+  const tuple<unsigned, unsigned> srcIdx;
+  const tuple<unsigned, unsigned> tgtIdx;
 };
 
 vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& tgt,

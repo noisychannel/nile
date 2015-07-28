@@ -33,7 +33,10 @@ public:
   GauravsModel(Model& cnn_model, const string& src_embedding_filename, const string& tgt_embedding_filename);
   void InitializeParameters(Model* cnn_model);
   void InitializeEmbeddings(const string& filename, bool is_source);
-  Expression GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg);
+  Expression GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt,
+      const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg,
+      map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
+      map<tuple<unsigned, unsigned>, Expression>& tgtExpCache);
   vector<unsigned> ConvertSourceSentence(const string& words);
   vector<unsigned> ConvertSourceSentence(const vector<string>& words);
   vector<unsigned> ConvertTargetSentence(const string& words);
@@ -82,7 +85,9 @@ private:
   // create the "contextual-rule" embedding.
   // This function returns the contextual rule embedding for one context
   // instance.
-  Expression BuildRNNGraph(Context c, ComputationGraph& hg);
+  Expression BuildRNNGraph(Context c, ComputationGraph& hg,
+      map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
+      map<tuple<unsigned, unsigned>, Expression>& tgtExpCache);
 
   // Reads a sequence of contexts built for an n-best hypothesis (in association
   // with the source side sentence) and runs the CRNN model to get rule
@@ -91,11 +96,15 @@ private:
   // The embeddings are currently simply summed together to get the feature
   // vector for the hypothesis. This may change in the future.
   // TODO (gaurav)
-  Expression BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg);
+  Expression BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg,
+        map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
+        map<tuple<unsigned, unsigned>, Expression>& tgtExpCache);
 
   Expression getRNNRuleContext(
     const vector<unsigned>& src, const vector<unsigned>& tgt,
-    const vector<PhraseAlignmentLink>& links, ComputationGraph& hg);
+    const vector<PhraseAlignmentLink>& links, ComputationGraph& hg,
+    map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
+    map<tuple<unsigned, unsigned>, Expression>& tgtExpCache);
 
   friend class boost::serialization::access;
   template<class Archive>
