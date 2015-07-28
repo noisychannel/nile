@@ -50,6 +50,10 @@ vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& 
       targetPhrase.push_back(*tgt_it);
     }
 
+    // Reverse the right context before storing it
+    // The right context RNN is a backward one!
+    reverse(rightContext.begin(), rightContext.end());
+
     //Create context object
     //Add coverage vector to the context
     Context curContext = {leftContext, rightContext, sourcePhrase, targetPhrase,
