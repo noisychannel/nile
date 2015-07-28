@@ -259,16 +259,12 @@ Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, Com
     map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
     map<tuple<unsigned, unsigned>, Expression>& tgtExpCache) {
   assert (cSeq.size() > 0);
-  //map<tuple<unsigned, unsigned>, Expression> srcExpCache;
-  //map<tuple<unsigned, unsigned>, Expression> tgtExpCache;
   //TODO; Is this count right ?
   vector<Expression> ruleEmbeddings;
   for (unsigned i = 0; i < cSeq.size(); ++i) {
     const Context& currentContext = cSeq[i];
     Expression currentEmbedding = BuildRNNGraph(currentContext, hg, srcExpCache, tgtExpCache);
     ruleEmbeddings.push_back(currentEmbedding);
-    //cerr << srcExpCache.size() << " src entries cached" << endl;
-    //cerr << tgtExpCache.size() << " tgt entries cached" << endl;
   }
   assert (ruleEmbeddings.size() > 0);
   assert (ruleEmbeddings.size() == cSeq.size());

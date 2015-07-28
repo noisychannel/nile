@@ -12,6 +12,7 @@ struct Context {
   const vector<unsigned> targetRule;
   const tuple<unsigned, unsigned> srcIdx;
   const tuple<unsigned, unsigned> tgtIdx;
+  vector<double> coverage;
 };
 
 vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& tgt,

@@ -11,15 +11,14 @@ vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& 
                             const vector<PhraseAlignmentLink>& links) {
 
   vector<Context> contextSeq;
-  vector<vector<double> > coverageVectors;
 
   for (unsigned i = 0; i < links.size(); ++i) {
     vector<double> cv;
-    if (coverageVectors.size() == 0) {
+    if (i == 0) {
       cv.resize(src.size(), 0.0);
     }
     else {
-      cv = coverageVectors.back();
+      cv = contextSeq.back().coverage;
     }
     PhraseAlignmentLink currentSrcSpan = links[i];
     vector<unsigned> leftContext;
@@ -51,23 +50,29 @@ vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& 
       targetPhrase.push_back(*tgt_it);
     }
 
-    // FIXME : Debugging info
-    //cerr << currentSrcSpan.src_start << " " << currentSrcSpan.src_end << endl;
-    //cerr << currentSrcSpan.tgt_start << " " << currentSrcSpan.tgt_end << endl;
-    //for (auto cv_it = cv.begin(); cv_it != cv.end(); ++cv_it) {
-      //cerr << *cv_it;
-    //}
-    //cerr << endl;
-    //Push cv to all coverage vectors for this derivation
-    coverageVectors.push_back(cv);
-
-    //cerr << " ******** " << endl;
+    //Create context object
+    //Add coverage vector to the context
     Context curContext = {leftContext, rightContext, sourcePhrase, targetPhrase,
                           make_pair(currentSrcSpan.src_start, currentSrcSpan.src_end),
-                          make_pair(currentSrcSpan.tgt_start, currentSrcSpan.tgt_end)};
+                          make_pair(currentSrcSpan.tgt_start, currentSrcSpan.tgt_end),
+                          cv};
+
     contextSeq.push_back(curContext);
     assert (curContext.leftContext.size() == contextSeq.back().leftContext.size());
   }
+
+  //Remove the first and last element from the coverage vectors
+  //These correspond to <s> and </s>
+  for (auto context_it = contextSeq.begin(); context_it != contextSeq.end(); ++context_it) {
+    vector<double> coverageVector = (*context_it).coverage;
+    coverageVector.erase(coverageVector.begin());
+    coverageVector.pop_back();
+    //for (auto cv_it = coverageVector.begin(); cv_it != coverageVector.end(); ++cv_it) {
+      //cerr << *cv_it;
+    //}
+    //cerr << endl;
+  }
+
   //abort();
 
   return contextSeq;
