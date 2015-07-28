@@ -34,6 +34,7 @@ public:
   bool NextSet(vector<KbestHypothesis>& out);
   void Reset();
   void Shuffle();
+  KbestHypothesis Get(unsigned sent_index, unsigned hyp_index);
 private:
   bool done_loading;
   SimpleKbestList simple_kbest;

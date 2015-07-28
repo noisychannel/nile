@@ -21,6 +21,10 @@ SimpleDataView::SimpleDataView(KbestList* kbest_list, unsigned max_features) : m
 
 SimpleDataView::SimpleDataView() : max_features(0), num_features_(0) {}
 
+void SimpleDataView::Initialize(KbestList* kbest_list, const string& source_filename) {
+  Initialize(kbest_list);
+}
+
 void SimpleDataView::Initialize(KbestList* kbest_list) {
   vector<KbestHypothesis> hypotheses;
   while (kbest_list->NextSet(hypotheses)) {

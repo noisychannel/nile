@@ -103,7 +103,7 @@ GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filenam
   tgt_dict.Convert(kBos);
   tgt_dict.Convert(kEos); 
 
-  InitializeParameters(cnn_model);
+  InitializeParameters(&cnn_model);
 
   InitializeEmbeddings(src_embedding_filename, true);
   InitializeEmbeddings(tgt_embedding_filename, false);
@@ -146,23 +146,23 @@ void GauravsModel::InitializeEmbeddings(const string& filename, bool is_source) 
   }
 }
 
-void GauravsModel::InitializeParameters(Model& cnn_model) {
-  builder_context_left = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, &cnn_model);
-  builder_context_right = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, &cnn_model);
-  builder_rule_source = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, &cnn_model);
-  builder_rule_target = LSTMBuilder(num_layers, tgt_embedding_dimension, hidden_size, &cnn_model);
+void GauravsModel::InitializeParameters(Model* cnn_model) {
+  builder_context_left = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
+  builder_context_right = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
+  builder_rule_source = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
+  builder_rule_target = LSTMBuilder(num_layers, tgt_embedding_dimension, hidden_size, cnn_model);
 
-  p_R_cl = cnn_model.add_parameters({hidden_size, hidden_size});
-  p_bias_cl = cnn_model.add_parameters({hidden_size});
-  p_R_cr = cnn_model.add_parameters({hidden_size, hidden_size});
-  p_bias_cr = cnn_model.add_parameters({hidden_size});
-  p_R_rs = cnn_model.add_parameters({hidden_size, hidden_size});
-  p_bias_rs = cnn_model.add_parameters({hidden_size});
-  p_R_rt = cnn_model.add_parameters({hidden_size, hidden_size});
-  p_bias_rt = cnn_model.add_parameters({hidden_size});
+  p_R_cl = cnn_model->add_parameters({hidden_size, hidden_size});
+  p_bias_cl = cnn_model->add_parameters({hidden_size});
+  p_R_cr = cnn_model->add_parameters({hidden_size, hidden_size});
+  p_bias_cr = cnn_model->add_parameters({hidden_size});
+  p_R_rs = cnn_model->add_parameters({hidden_size, hidden_size});
+  p_bias_rs = cnn_model->add_parameters({hidden_size});
+  p_R_rt = cnn_model->add_parameters({hidden_size, hidden_size});
+  p_bias_rt = cnn_model->add_parameters({hidden_size});
 
-  src_embeddings = cnn_model.add_lookup_parameters(src_vocab_size, {src_embedding_dimension});
-  tgt_embeddings = cnn_model.add_lookup_parameters(tgt_vocab_size, {tgt_embedding_dimension});
+  src_embeddings = cnn_model->add_lookup_parameters(src_vocab_size, {src_embedding_dimension});
+  tgt_embeddings = cnn_model->add_lookup_parameters(tgt_vocab_size, {tgt_embedding_dimension});
 }
 
 void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out) {

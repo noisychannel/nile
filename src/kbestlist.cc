@@ -111,3 +111,9 @@ void KbestListInRam::Shuffle() {
   Reset();
   random_shuffle(hypotheses.begin(), hypotheses.end());
 }
+
+KbestHypothesis KbestListInRam::Get(unsigned sent_index, unsigned hyp_index) {
+  assert (sent_index < hypotheses.size());
+  assert (hyp_index < hypotheses[sent_index].size());
+  return hypotheses[sent_index][hyp_index];
+}

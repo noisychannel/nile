@@ -90,34 +90,50 @@ int main(int argc, char** argv) {
   boost::archive::text_iarchive ia(model_file);
   ia >> reranker_model;
   ia >> data_view;
-  ia >> feature_extractor;
+  ia >> feature_extractor; 
+  //data_view->InitializeParameters(&cnn_model);
+  data_view->Initialize(kbest_list, source_filename);
+  feature_extractor->InitializeParameters(&cnn_model); 
+  feature_extractor->SetDataPointer(data_view);
+  reranker_model->InitializeParameters(&cnn_model);
   ia >> cnn_model;
 
   vector<KbestHypothesis> hypotheses;
   vector<vector<float> > hypothesis_features(hypotheses.size());
   vector<float> metric_scores(hypotheses.size()); //unused
 
-  unsigned num_sentences = 0;
-  /*while (kbest_list->NextSet(hypotheses)) {
-    assert (hypotheses.size() > 0);
-    num_sentences++;
-    cerr << num_sentences << "\r";
-
+  unsigned sent_index = 0;
+  while (feature_extractor->MoveToNextSentence()) {
     ComputationGraph cg;
-    converter->ConvertKbestSet(hypotheses, hypothesis_features, metric_scores);
-    KbestHypothesis* best = NULL;
+    unsigned best_hyp_index = 0;
     double best_score = 0.0;
-    for (unsigned i = 0; i < hypotheses.size(); ++i) {
-      reranker_model->score(&hypothesis_features[i], cg);
+    unsigned hyp_index = 0;
+    while (feature_extractor->MoveToNextHypothesis()) {
+      Expression features = feature_extractor->GetFeatures(cg);
+      reranker_model->score(features, cg);
       double score = as_scalar(cg.incremental_forward());
-      if (score > best_score || best == NULL) {
-        best = &hypotheses[i];
+      if (score > best_score || hyp_index == 0) {
+        best_hyp_index = hyp_index;
         best_score = score;
       }
+      ++hyp_index;
     }
-    cout << best->sentence_id << " ||| " << best->sentence << " ||| ";
-    cout << "features yay" << " ||| " << best->metric_score << endl;
-  }*/
+    assert (hyp_index > 0);
+    const KbestHypothesis best = dynamic_cast<KbestListInRam*>(kbest_list)->Get(sent_index, best_hyp_index);
+    cout << best.sentence_id << " ||| " << best.sentence << " ||| ";
+    bool first = true;
+    for (const auto& kvp : best.features) {
+      if (!first) {
+        cout << " ";
+      }
+      cout << kvp.first << "=" << kvp.second;
+      first = false;
+    }
+    cout << " ||| " << best.metric_score << endl;
+
+    sent_index++;
+    cerr << sent_index << "\r";
+  }
 
   if (kbest_list != NULL) {
     delete kbest_list;

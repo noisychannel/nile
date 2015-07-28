@@ -31,6 +31,7 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
 class GauravsModel {
 public:
   GauravsModel(Model& cnn_model, const string& src_embedding_filename, const string& tgt_embedding_filename);
+  void InitializeParameters(Model* cnn_model);
   void InitializeEmbeddings(const string& filename, bool is_source);
   Expression GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt, const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg);
   vector<unsigned> ConvertSourceSentence(const string& words);
@@ -45,7 +46,6 @@ public:
 private:
   GauravsModel();
   void BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out);
-  void InitializeParameters(Model& cnn_model);
   LookupParameters* src_embeddings;
   LookupParameters* tgt_embeddings;
   unsigned src_vocab_size;

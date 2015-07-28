@@ -14,7 +14,7 @@ RerankerModel::RerankerModel() {
   num_dimensions = 0;
 }
 
-RerankerModel::RerankerModel(Model* cnn_model, unsigned num_dimensions) : cnn_model(cnn_model), num_dimensions(num_dimensions) {}
+RerankerModel::RerankerModel(unsigned num_dimensions) : num_dimensions(num_dimensions) {}
 
 RerankerModel::~RerankerModel() {}
 
@@ -37,14 +37,14 @@ void RerankerModel::BuildComputationGraph(const vector<Expression>& features, co
   Expression loss = -ebleu;
 }
 
-LinearRerankerModel::LinearRerankerModel() : RerankerModel(NULL, 0) {
+LinearRerankerModel::LinearRerankerModel() : RerankerModel(0) {
 }
 
-LinearRerankerModel::LinearRerankerModel(Model* cnn_model, unsigned num_dimensions) : RerankerModel(cnn_model, num_dimensions) {
-  InitializeParameters();
+LinearRerankerModel::LinearRerankerModel(Model* cnn_model, unsigned num_dimensions) : RerankerModel(num_dimensions) {
+  InitializeParameters(cnn_model);
 }
 
-void LinearRerankerModel::InitializeParameters() {
+void LinearRerankerModel::InitializeParameters(Model* cnn_model) {
   assert (num_dimensions > 0);
   p_w = cnn_model->add_parameters({1, num_dimensions});
 }
@@ -55,15 +55,15 @@ Expression LinearRerankerModel::score(Expression h, ComputationGraph& cg) {
   return s;
 }
 
-NonlinearRerankerModel::NonlinearRerankerModel() : RerankerModel(NULL, 0) {
+NonlinearRerankerModel::NonlinearRerankerModel() : RerankerModel(0) {
   hidden_size = 0;
 }
 
-NonlinearRerankerModel::NonlinearRerankerModel(Model* cnn_model, unsigned num_dimensions, unsigned hidden_layer_size) : RerankerModel(cnn_model, num_dimensions), hidden_size(hidden_layer_size) {
-  InitializeParameters();
+NonlinearRerankerModel::NonlinearRerankerModel(Model* cnn_model, unsigned num_dimensions, unsigned hidden_layer_size) : RerankerModel(num_dimensions), hidden_size(hidden_layer_size) {
+  InitializeParameters(cnn_model);
 }
 
-void NonlinearRerankerModel::InitializeParameters() {
+void NonlinearRerankerModel::InitializeParameters(Model* cnn_model) {
   assert (num_dimensions > 0);
   p_w1 = cnn_model->add_parameters({hidden_size, num_dimensions});
   p_w2 = cnn_model->add_parameters({1, hidden_size});

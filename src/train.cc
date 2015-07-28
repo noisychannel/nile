@@ -128,6 +128,16 @@ RerankerModel* CreateRerankerModel(Model& cnn_model, unsigned num_dimensions, co
   return reranker_model;
 }
 
+void Serialize(const RerankerModel* reranker_model, const KbestListDataView* data_view, const KbestFeatureExtractor* feature_extractor, const Model& cnn_model) {
+  ftruncate(fileno(stdout), 0);
+  fseek(stdout, 0, SEEK_SET);
+  boost::archive::text_oarchive oa(cout);
+  oa << reranker_model;
+  oa << data_view;
+  oa << feature_extractor;
+  oa << cnn_model;
+}
+
 int main(int argc, char** argv) {
   signal (SIGINT, ctrlc_handler);
 
@@ -297,23 +307,13 @@ int main(int argc, char** argv) {
       }
       cerr << endl;
       if (new_best) {
-        ftruncate(fileno(stdout), 0);
-        fseek(stdout, 0, SEEK_SET);
-        boost::archive::text_oarchive oa(cout);
-        oa << reranker_model;
-        oa << train_data_view;
-        oa << train_feature_extractor;
-        oa << cnn_model;
+        Serialize(reranker_model, train_data_view, train_feature_extractor, cnn_model);
       }
     }
   }
 
   if (dev_filename.length() == 0) {
-    boost::archive::text_oarchive oa(cout);
-    oa << reranker_model;
-    oa << train_data_view;
-    oa << train_feature_extractor;
-    oa << cnn_model;
+    Serialize(reranker_model, train_data_view, train_feature_extractor, cnn_model);
   }
 
   SAFE_DELETE(train_feature_extractor);

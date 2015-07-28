@@ -16,9 +16,16 @@ SimpleKbestFeatureExtractor::SimpleKbestFeatureExtractor(SimpleDataView* data) :
 
 SimpleKbestFeatureExtractor::~SimpleKbestFeatureExtractor() {}
 
+void SimpleKbestFeatureExtractor::InitializeParameters(Model* cnn_model) {}
+
 void SimpleKbestFeatureExtractor::Reset() {
   sent_index = -1;
   hyp_index = -1;
+}
+
+void SimpleKbestFeatureExtractor::SetDataPointer(KbestListDataView* data) {
+  this->data = dynamic_cast<SimpleDataView*>(data);
+  Reset();
 }
 
 bool SimpleKbestFeatureExtractor::MoveToNextSentence() {
@@ -76,6 +83,15 @@ GauravsFeatureExtractor::~GauravsFeatureExtractor() {
     delete gauravs_model;
     gauravs_model = NULL;
   }
+}
+
+void GauravsFeatureExtractor::SetDataPointer(KbestListDataView* data) {
+  this->data = dynamic_cast<GauravDataView*>(data);
+  Reset();
+}
+
+void GauravsFeatureExtractor::InitializeParameters(Model* cnn_model) {
+  gauravs_model->InitializeParameters(cnn_model);
 }
 
 void GauravsFeatureExtractor::Reset() {

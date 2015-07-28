@@ -16,18 +16,16 @@ using namespace cnn::expr;
 
 class RerankerModel {
 public:
-  explicit RerankerModel(Model* cnn_model, unsigned num_dimensions);
+  explicit RerankerModel(unsigned num_dimensions);
   Expression BatchScore(const vector<Expression>& features, ComputationGraph& cg);
   void BuildComputationGraph(const vector<Expression>& features, const vector<Expression>& gold_scores, ComputationGraph& cg);
 
   virtual ~RerankerModel();
   virtual Expression score(Expression h, ComputationGraph& cg) = 0;
 
-  Model* cnn_model;
-
+  virtual void InitializeParameters(Model* cnn_model) = 0;
 protected:
   RerankerModel();
-  virtual void InitializeParameters() = 0;
   unsigned num_dimensions;
 
   friend class boost::serialization::access;
@@ -40,7 +38,7 @@ protected:
 class LinearRerankerModel : public RerankerModel {
 public:
   explicit LinearRerankerModel(Model* cnn_model, unsigned num_dimensions);
-  void InitializeParameters();
+  void InitializeParameters(Model* cnn_model);
   Expression score(Expression h, ComputationGraph& cg);
 
 private:
@@ -58,7 +56,7 @@ BOOST_CLASS_EXPORT_KEY(LinearRerankerModel)
 class NonlinearRerankerModel : public RerankerModel {
 public:
   explicit NonlinearRerankerModel(Model* cnn_model, unsigned num_dimensions, unsigned hidden_layer_size);
-  void InitializeParameters();
+  void InitializeParameters(Model* cnn_model);
   Expression score(Expression h, ComputationGraph& cg);
 
 private:

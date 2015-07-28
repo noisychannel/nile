@@ -14,6 +14,7 @@ public:
   explicit KbestListDataView(KbestList* kbest_list);
   virtual ~KbestListDataView();
   virtual unsigned size() const = 0;
+  virtual void Initialize(KbestList* kbest_list, const string& source_filename) = 0;
 
   friend class boost::serialization::access;
   template<class Archive>
@@ -36,6 +37,7 @@ public:
 private:
   SimpleDataView();
   void Initialize(KbestList* kbest_list);
+  void Initialize(KbestList* kbest_list, const string& source_filename);
   void ConvertFeatureVector(const KbestHypothesis& hypothesis, vector<float>& out);
   bool AddFeature(const string& feat_name);
 

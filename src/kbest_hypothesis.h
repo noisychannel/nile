@@ -25,12 +25,3 @@ struct KbestHypothesis {
 
   static KbestHypothesis parse(string input);
 };
-
-struct FastKbestHypothesis {
-  string sentence_id;
-  string sentence;
-  unordered_map<unsigned, double> features;
-  double metric_score;
-
-  static FastKbestHypothesis parse(string input, map<string, unsigned>& feat2id);
-};
