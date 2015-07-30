@@ -2,6 +2,7 @@
 #include "dataview.h"
 BOOST_CLASS_EXPORT_IMPLEMENT(SimpleDataView)
 BOOST_CLASS_EXPORT_IMPLEMENT(GauravDataView)
+BOOST_CLASS_EXPORT_IMPLEMENT(CombinedDataView)
 
 KbestListDataView::KbestListDataView() {}
 KbestListDataView::KbestListDataView(KbestList* kbest_list) {}
@@ -216,4 +217,41 @@ Expression GauravDataView::GetMetricScore(unsigned sent_index, unsigned hyp_inde
   assert (sent_index < target_strings.size());
   assert (hyp_index < target_strings[sent_index].size());
   return input(cg, metric_scores[sent_index][hyp_index]);
+}
+
+CombinedDataView::CombinedDataView(KbestList* kbest_list, const string& source_filename) {
+  simple = new SimpleDataView(kbest_list);
+  kbest_list->Reset();
+  gaurav = new GauravDataView(kbest_list, source_filename);
+  assert (simple->size() == gaurav->size());
+}
+
+CombinedDataView::~CombinedDataView() {
+  if (simple != NULL) {
+    delete simple;
+    simple = NULL;
+  }
+
+  if (gaurav != NULL) {
+    delete gaurav;
+    gaurav = NULL;
+  }
+}
+
+unsigned CombinedDataView::size() const {
+  unsigned s = simple->size();
+  unsigned g = gaurav->size();
+  assert (s == g);
+  return s;
+}
+
+void CombinedDataView::Initialize(KbestList* kbest_list, const string& source_filename) {
+  simple->Initialize(kbest_list, source_filename);
+  kbest_list->Reset();
+  gaurav->Initialize(kbest_list, source_filename);
+}
+
+CombinedDataView::CombinedDataView() {
+  simple = NULL;
+  gaurav = NULL;
 }

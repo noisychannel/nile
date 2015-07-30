@@ -35,7 +35,7 @@ void ctrlc_handler(int signal) {
 }
 
 void ShowUsageAndExit(string program_name) {
-    cerr << "Usage: " << program_name << " model kbest.txt" << endl;
+    cerr << "Usage: " << program_name << " model kbest.txt [source.txt]" << endl;
     cerr << endl;
     cerr << "Where kbest.txt contains lines of them form" << endl;
     cerr << "sentence_id ||| hypothesis ||| features ||| ... " << endl;
@@ -50,14 +50,14 @@ void ShowUsageAndExit(string program_name) {
 int main(int argc, char** argv) {
   po::options_description desc("description");
   desc.add_options()
-  ("kbest_filename", po::value<string>()->required(), "Input k-best hypothesis file")
   ("model_filename", po::value<string>()->required(), "Reranker model")
+  ("kbest_filename", po::value<string>()->required(), "Input k-best hypothesis file")
   ("source_filename", po::value<string>()->default_value(""), "(Optional) List of source sentences corresponding to the input k-best list. Only required if using Gaurav's Model")
   ("help", "Display this help message");
 
   po::positional_options_description positional_options;
-  positional_options.add("kbest_filename", 1);
   positional_options.add("model_filename", 1);
+  positional_options.add("kbest_filename", 1);
   positional_options.add("source_filename", 1);
 
   po::variables_map vm;

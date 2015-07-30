@@ -34,10 +34,11 @@ public:
   Expression GetMetricScore(unsigned sent_index, unsigned hyp_index, ComputationGraph& cg) const;
   Expression GetSentenceMetricScoreVector(unsigned sent_index, ComputationGraph& cg) const;
   unsigned num_features() const;
-private:
-  SimpleDataView();
+
   void Initialize(KbestList* kbest_list);
   void Initialize(KbestList* kbest_list, const string& source_filename);
+private:
+  SimpleDataView();
   void ConvertFeatureVector(const KbestHypothesis& hypothesis, vector<float>& out);
   bool AddFeature(const string& feat_name);
 
@@ -53,10 +54,12 @@ private:
   template<class Archive>
   void serialize(Archive& ar, const unsigned int) {
     boost::serialization::void_cast_register<SimpleDataView, KbestListDataView>();
+    max_features = num_features_;
     ar & feat2id;
     ar & id2feat;
     ar & num_features_;
     ar & max_features;
+    max_features = num_features_;
   }
 };
 BOOST_CLASS_EXPORT_KEY(SimpleDataView)
@@ -73,10 +76,10 @@ public:
   vector<string> GetTargetString(unsigned sent_index, unsigned hyp_index) const;
   vector<PhraseAlignmentLink> GetAlignment(unsigned sent_index, unsigned hyp_index) const;
   Expression GetMetricScore(unsigned sent_index, unsigned hyp_index, ComputationGraph& cg) const;
+  void Initialize(KbestList* kbest_list, const string& source_filename); 
 private:
   GauravDataView();
-  void ReadSource(string filename);
-  void Initialize(KbestList* kbest_list, const string& source_filename); 
+  void ReadSource(string filename); 
   vector<string> sentence_ids;
   unordered_map<string, vector<string> > src_sentences;
   vector<vector<vector<string> > > target_strings;
@@ -90,3 +93,26 @@ private:
   }
 };
 BOOST_CLASS_EXPORT_KEY(GauravDataView)
+
+class CombinedDataView : public KbestListDataView {
+public:
+  CombinedDataView(KbestList* kbest_list, const string& source_filename);
+  ~CombinedDataView();
+  unsigned size() const;
+  void Initialize(KbestList* kbest_list, const string& source_filename);
+
+  SimpleDataView* simple;
+  GauravDataView* gaurav;
+
+private:
+  CombinedDataView();
+  friend class boost::serialization::access;
+  template<class Archive>
+  void serialize(Archive& ar, const unsigned int) {
+    boost::serialization::void_cast_register<CombinedDataView, KbestListDataView>();
+    ar & simple;
+    ar & gaurav;
+  }
+};
+BOOST_CLASS_EXPORT_KEY(CombinedDataView)
+

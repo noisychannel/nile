@@ -89,9 +89,10 @@ private:
 };
 BOOST_CLASS_EXPORT_KEY(GauravsFeatureExtractor)
 
-/*class CombinedFeatureExtractor : public KbestFeatureExtractor {
+class CombinedFeatureExtractor : public KbestFeatureExtractor {
 public:
-  CombinedFeatureExtractor(SimpleDataView* simple_data, GauravDataView* gaurav_data, Model& cnn_model, const string& source_filename, const string& source_embedding_file, const string& target_embedding_file);
+  CombinedFeatureExtractor(CombinedDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file);
+  CombinedFeatureExtractor(CombinedDataView* data, CombinedFeatureExtractor* parent);
   ~CombinedFeatureExtractor();
   bool MoveToNextSentence();
   bool MoveToNextHypothesis();
@@ -99,10 +100,11 @@ public:
   Expression GetMetricScore(ComputationGraph& cg) const;
   unsigned num_dimensions() const; 
   void Reset();
-  CombinedFeatureExtractor(const string& kbest_filename, unsigned max_features);
-  vector<Expression> ExtractFeatures(const vector<KbestHypothesis>& hyps, ComputationGraph& cg);
+  void InitializeParameters(Model* cnn_model);
+  void SetDataPointer(KbestListDataView* data);
 private:
   CombinedFeatureExtractor();
+  CombinedDataView* data;
   SimpleKbestFeatureExtractor* simple_extractor;
   GauravsFeatureExtractor* gauravs_extractor;
 
@@ -114,4 +116,4 @@ private:
     ar & gauravs_extractor;
   }
 };
-BOOST_CLASS_EXPORT_KEY(CombinedFeatureExtractor)*/
+BOOST_CLASS_EXPORT_KEY(CombinedFeatureExtractor)

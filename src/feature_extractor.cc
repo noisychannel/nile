@@ -2,7 +2,7 @@
 #include "feature_extractor.h"
 BOOST_CLASS_EXPORT_IMPLEMENT(SimpleKbestFeatureExtractor)
 BOOST_CLASS_EXPORT_IMPLEMENT(GauravsFeatureExtractor)
-//BOOST_CLASS_EXPORT_IMPLEMENT(CombinedFeatureExtractor)
+BOOST_CLASS_EXPORT_IMPLEMENT(CombinedFeatureExtractor)
 
 KbestFeatureExtractor::~KbestFeatureExtractor() {}
 
@@ -141,11 +141,74 @@ unsigned GauravsFeatureExtractor::num_dimensions() const {
   return gauravs_model->OutputDimension();
 }
 
-/*CombinedFeatureExtractor::CombinedFeatureExtractor() : simple_extractor(NULL), gauravs_extractor(NULL) {
+CombinedFeatureExtractor::CombinedFeatureExtractor() : simple_extractor(NULL), gauravs_extractor(NULL) {
+}
+
+CombinedFeatureExtractor::CombinedFeatureExtractor(CombinedDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file) : data(data) {
+  simple_extractor = new SimpleKbestFeatureExtractor(data->simple);
+  gauravs_extractor = new GauravsFeatureExtractor(data->gaurav, cnn_model, source_embedding_file, target_embedding_file);
   Reset();
+}
+
+CombinedFeatureExtractor::CombinedFeatureExtractor(CombinedDataView* data, CombinedFeatureExtractor* parent) {
+  simple_extractor = new SimpleKbestFeatureExtractor(data->simple);
+  gauravs_extractor = new GauravsFeatureExtractor(data->gaurav, parent->gauravs_extractor);
+  Reset();
+}
+
+bool CombinedFeatureExtractor::MoveToNextSentence() {
+  bool s = simple_extractor->MoveToNextSentence();
+  bool g = gauravs_extractor->MoveToNextSentence();
+  assert (s == g);
+  return s;
+}
+
+bool CombinedFeatureExtractor::MoveToNextHypothesis() {
+  bool s = simple_extractor->MoveToNextHypothesis();
+  bool g = gauravs_extractor->MoveToNextHypothesis();
+  assert (s == g);
+  return s;
+}
+
+Expression CombinedFeatureExtractor::GetFeatures(ComputationGraph& cg) const {
+  Expression simple_feats = simple_extractor->GetFeatures(cg);
+  Expression gaurav_feats = gauravs_extractor->GetFeatures(cg);
+  return concatenate({simple_feats, gaurav_feats});
+}
+
+Expression CombinedFeatureExtractor::GetMetricScore(ComputationGraph& cg) const {
+  // XXX: Hopefully Gaurav and Simple return the same metric score
+  return simple_extractor->GetMetricScore(cg);
+}
+
+unsigned CombinedFeatureExtractor::num_dimensions() const {
+  return simple_extractor->num_dimensions() + gauravs_extractor->num_dimensions();
 }
 
 void CombinedFeatureExtractor::Reset() {
   simple_extractor->Reset();
   gauravs_extractor->Reset();
-}*/
+}
+
+void CombinedFeatureExtractor::InitializeParameters(Model* cnn_model) {
+  simple_extractor->InitializeParameters(cnn_model);
+  gauravs_extractor->InitializeParameters(cnn_model);
+}
+
+void CombinedFeatureExtractor::SetDataPointer(KbestListDataView* data) {
+  this->data = dynamic_cast<CombinedDataView*>(data);
+  simple_extractor->SetDataPointer(this->data->simple);
+  gauravs_extractor->SetDataPointer(this->data->gaurav);
+  Reset();
+}
+
+CombinedFeatureExtractor::~CombinedFeatureExtractor() {
+  if (gauravs_extractor != NULL) {
+    delete gauravs_extractor;
+    gauravs_extractor = NULL;
+  }
+  if (simple_extractor != NULL) {
+    delete simple_extractor;
+    simple_extractor = NULL;
+  }
+}

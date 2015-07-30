@@ -164,6 +164,7 @@ int main(int argc, char** argv) {
   ("max_features", po::value<unsigned>()->default_value(UINT_MAX), "Maximum number of input features. Later features will be discarded.")
   ("num_iterations,i", po::value<unsigned>()->default_value(UINT_MAX), "Number of epochs to train for")
   ("gaurav", po::value<vector<string> >()->multitoken(), "Use Gaurav's crazy-ass model. Specify source sentences, source embeddings, target embeddings.")
+  ("combined", "Use the normal model in addition to Gaurav's. Specify --gaurav with the necessary files in addition to this flag.")
   ("help", "Display this help message");
 
   po::positional_options_description positional_options;
@@ -211,8 +212,14 @@ int main(int argc, char** argv) {
     string source_file = gauravs_shit[0];
     string source_embeddings_file = gauravs_shit[1];
     string target_embeddings_file = gauravs_shit[2];
-    train_data_view = new GauravDataView(train_kbest_list, source_file);
-    train_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(train_data_view), cnn_model, source_embeddings_file, target_embeddings_file);
+    if (vm.count("combined") > 0) {
+      train_data_view = new CombinedDataView(train_kbest_list, source_file);
+      train_feature_extractor = new CombinedFeatureExtractor(dynamic_cast<CombinedDataView*>(train_data_view), cnn_model, source_embeddings_file, target_embeddings_file);
+    }
+    else {
+      train_data_view = new GauravDataView(train_kbest_list, source_file);
+      train_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(train_data_view), cnn_model, source_embeddings_file, target_embeddings_file);
+    }
   }
   else {
     train_data_view = new SimpleDataView(train_kbest_list, max_features);
@@ -227,8 +234,14 @@ int main(int argc, char** argv) {
       string source_file = gauravs_shit[3];
       string source_embeddings_file = gauravs_shit[1];
       string target_embeddings_file = gauravs_shit[2];
-      dev_data_view = new GauravDataView(dev_kbest_list, source_file);
-      dev_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(dev_data_view), dynamic_cast<GauravsFeatureExtractor*>(train_feature_extractor));
+      if (vm.count("combined") > 0) {
+        dev_data_view = new CombinedDataView(dev_kbest_list, source_file);
+        dev_feature_extractor = new CombinedFeatureExtractor(dynamic_cast<CombinedDataView*>(dev_data_view), dynamic_cast<CombinedFeatureExtractor*>(train_feature_extractor));
+      }
+      else {
+        dev_data_view = new GauravDataView(dev_kbest_list, source_file);
+        dev_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(dev_data_view), dynamic_cast<GauravsFeatureExtractor*>(train_feature_extractor));
+      }
     }
     else {
       dev_data_view = new SimpleDataView(dev_kbest_list, dynamic_cast<SimpleDataView*>(train_data_view));

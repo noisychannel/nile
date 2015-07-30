@@ -55,8 +55,7 @@ bool SimpleKbestList::NextSet(vector<KbestHypothesis>& out) {
       current_sent_id = hyp.sentence_id;
     }
     if (hyp.sentence_id != current_sent_id) {
-      next_hypothesis = new KbestHypothesis(hyp);
-      cerr << current_sent_id << "\r";
+      next_hypothesis = new KbestHypothesis(hyp); 
       return true;
     }
     out.push_back(hyp);
