@@ -157,8 +157,8 @@ void GauravsModel::InitializeEmbeddings(const string& filename, bool is_source) 
 void GauravsModel::InitializeParameters(Model* cnn_model) {
   builder_context_left = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
   builder_context_right = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
-  builder_rule_source = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
-  builder_rule_target = LSTMBuilder(num_layers, tgt_embedding_dimension, hidden_size, cnn_model);
+  builder_rule_source = GRUBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
+  builder_rule_target = GRUBuilder(num_layers, tgt_embedding_dimension, hidden_size, cnn_model);
 
   if (use_reordering_model) {
     coverage_builder_context_left = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
@@ -438,7 +438,7 @@ vector<Expression> GauravsModel::CoverageRecurrence(const vector<double>& sequen
   return hiddenStates;
 }
 
-vector<Expression> GauravsModel::Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder) {
+vector<Expression> GauravsModel::Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, RNNBuilder& builder) {
   assert (sequence.size() > 0);
   const unsigned sequenceLen = sequence.size();
   vector<Expression> hiddenStates;

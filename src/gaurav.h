@@ -6,6 +6,7 @@
 #include "cnn/dict.h"
 #include "cnn/expr.h"
 #include "cnn/lstm.h"
+#include "cnn/gru.h"
 #include "context.h"
 
 using namespace std;
@@ -79,8 +80,8 @@ private:
 
   LSTMBuilder builder_context_left;
   LSTMBuilder builder_context_right;
-  LSTMBuilder builder_rule_source;
-  LSTMBuilder builder_rule_target;
+  GRUBuilder builder_rule_source;
+  GRUBuilder builder_rule_target;
 
   LSTMBuilder coverage_builder_context_left;
   LSTMBuilder coverage_builder_context_right;
@@ -89,7 +90,7 @@ private:
 
   // This is a general recurrence operation for an RNN over a sequence
   // Reads in a sequence, creates and returns hidden states.
-  vector<Expression> Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder);
+  vector<Expression> Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, RNNBuilder& builder);
   vector<Expression> CoverageRecurrence(const vector<double>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder);
 
   Expression BuildCoverageGraph(const Context& currentContext, ComputationGraph& hg);
