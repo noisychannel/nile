@@ -362,41 +362,65 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache
 
   Expression srcConv;
   auto srcIt = exp_cache.srcExpCache.find(c.srcIdx);
-  //cerr << get<0>(c.srcIdx) << "," << get<1>(c.srcIdx) << endl;
   //First check to see if the source is cached
   if (srcIt != exp_cache.srcExpCache.end()) {
     srcConv = srcIt->second;
   }
   else {
     vector<Expression> convVector;
-    //Initialize builders
-    builder_context_left.new_graph(hg);
-    builder_context_right.new_graph(hg);
-    builder_rule_source.new_graph(hg);
-    // Tell the builder that we are about to start a recurrence
-    builder_context_left.start_new_sequence();
-    builder_context_right.start_new_sequence();
-    builder_rule_source.start_new_sequence();
-    // Create the symbolic graph for the unrolled recurrent network
-    vector<Expression> hiddens_cl = Recurrence(c.leftContext, hg,
-                                {src_embeddings, p_R_cl, p_bias_cl}, builder_context_left);
-    vector<Expression> hiddens_cr = Recurrence(c.rightContext, hg,
-                                {src_embeddings, p_R_cr, p_bias_cr}, builder_context_right);
-    vector<Expression> hiddens_rs = Recurrence(c.sourceRule, hg,
-                                {src_embeddings, p_R_rs, p_bias_rs}, builder_rule_source);
-    assert (hiddens_cl.size() > 0);
-    assert (hiddens_cr.size() > 0);
-    assert (hiddens_rs.size() > 0);
-    convVector.push_back(hiddens_cl.back());
-    convVector.push_back(hiddens_cr.back());
-    convVector.push_back(hiddens_rs.back());
+
+    auto lContextIt = exp_cache.lContextCache.find(get<0>(c.srcIdx));
+    if (lContextIt != exp_cache.lContextCache.end()) {
+      convVector.push_back(lContextIt->second);
+    }
+    else {
+      //Initialize builders
+      builder_context_left.new_graph(hg);
+      // Tell the builder that we are about to start a recurrence
+      builder_context_left.start_new_sequence();
+      // Create the symbolic graph for the unrolled recurrent network
+      vector<Expression> hiddens_cl = Recurrence(c.leftContext, hg,
+                                  {src_embeddings, p_R_cl, p_bias_cl}, builder_context_left);
+      assert (hiddens_cl.size() > 0);
+      convVector.push_back(hiddens_cl.back());
+      exp_cache.lContextCache.insert(make_pair(get<0>(c.srcIdx), hiddens_cl.back()));
+    }
+
+    auto rContextIt = exp_cache.rContextCache.find(get<1>(c.srcIdx));
+    if (rContextIt != exp_cache.rContextCache.end()) {
+      convVector.push_back(rContextIt->second);
+    }
+    else {
+      builder_context_right.new_graph(hg);
+      builder_context_right.start_new_sequence();
+      vector<Expression> hiddens_cr = Recurrence(c.rightContext, hg,
+                                  {src_embeddings, p_R_cr, p_bias_cr}, builder_context_right);
+      assert (hiddens_cr.size() > 0);
+      convVector.push_back(hiddens_cr.back());
+      exp_cache.rContextCache.insert(make_pair(get<1>(c.srcIdx), hiddens_cr.back()));
+    }
+
+    auto sPhraseIt = exp_cache.sPhraseCache.find(c.srcIdx);
+    if (sPhraseIt != exp_cache.sPhraseCache.end()) {
+      convVector.push_back(sPhraseIt->second);
+    }
+    else {
+      builder_rule_source.new_graph(hg);
+      builder_rule_source.start_new_sequence();
+      vector<Expression> hiddens_rs = Recurrence(c.sourceRule, hg,
+                                  {src_embeddings, p_R_rs, p_bias_rs}, builder_rule_source);
+      assert (hiddens_rs.size() > 0);
+      convVector.push_back(hiddens_rs.back());
+      exp_cache.sPhraseCache.insert(make_pair(c.srcIdx, hiddens_rs.back()));
+    }
+
     srcConv = sum(convVector);
     exp_cache.srcExpCache.insert(make_pair(c.srcIdx, srcConv));
   }
 
   Expression tgtConv;
-  auto tgtIt = exp_cache.tgtExpCache.find(c.tgtIdx);
-  if (tgtIt != exp_cache.tgtExpCache.end()) {
+  auto tgtIt = exp_cache.tPhraseCache.find(c.tgtIdx);
+  if (tgtIt != exp_cache.tPhraseCache.end()) {
     tgtConv = tgtIt->second;
   }
   else {
@@ -406,7 +430,7 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache
                                 {tgt_embeddings, p_R_rt, p_bias_rt}, builder_rule_target);
     assert (hiddens_rt.size() > 0);
     tgtConv = hiddens_rt.back();
-    exp_cache.tgtExpCache.insert(make_pair(c.tgtIdx, tgtConv));
+    exp_cache.tPhraseCache.insert(make_pair(c.tgtIdx, tgtConv));
   }
   vector<Expression> convVector{srcConv, tgtConv};
   Expression conv = sum(convVector);

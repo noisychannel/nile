@@ -109,7 +109,10 @@ bool GauravsFeatureExtractor::MoveToNextSentence() {
   hyp_index = -1;
   //Reset cache
   exp_cache.srcExpCache.clear();
-  exp_cache.tgtExpCache.clear();
+  exp_cache.tPhraseCache.clear();
+  exp_cache.sPhraseCache.clear();
+  exp_cache.lContextCache.clear();
+  exp_cache.rContextCache.clear();
   return true;
 }
 
@@ -130,7 +133,6 @@ Expression GauravsFeatureExtractor::GetFeatures(ComputationGraph& cg) const {
   vector<string> tgt_words = data->GetTargetString(sent_index, hyp_index);
   vector<unsigned> tgt = gauravs_model->ConvertTargetSentence(tgt_words);
   vector<PhraseAlignmentLink> alignment = data->GetAlignment(sent_index, hyp_index);
-  //return gauravs_model->GetRuleContext(src, tgt, alignment, cg, exp_cache.srcExpCache, exp_cache.tgtExpCache);
   return gauravs_model->GetRuleContext(src, tgt, alignment, cg, exp_cache);
 }
 
