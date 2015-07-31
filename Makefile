@@ -1,19 +1,19 @@
 CC=g++
 #CNN_DIR = /Users/austinma/git/cnn/
 #CNN_DIR = /home/austinma/git/cnn
-CNN_DIR = /home/austinma/git/ws15mt-cnn
+#CNN_DIR = /home/austinma/git/ws15mt-cnn
 #CNN_DIR=/export/a04/gkumar/code/cnn/
-#CNN_DIR=/Users/gaurav/Projects/cnn/
+CNN_DIR=/Users/gaurav/Projects/cnn/
 #EIGEN = /Users/austinma/git/eigen
-EIGEN = /opt/tools/eigen-dev/
+#EIGEN = /opt/tools/eigen-dev/
 #EIGEN=/export/a04/gkumar/code/eigen/
-#EIGEN=/Users/gaurav/Projects/eigen/
+EIGEN=/Users/gaurav/Projects/eigen/
 CNN_BUILD_DIR=$(CNN_DIR)/build
 INCS=-I$(CNN_DIR) -I$(CNN_BUILD_DIR) -I$(EIGEN)
 LIBS=-L$(CNN_BUILD_DIR)/cnn/
 FINAL=-lcnn -lboost_regex -lboost_serialization -lboost_program_options
-CFLAGS=-std=c++11 -Ofast -march=native -pipe
-#CFLAGS=-std=c++11 -O0 -g -DDEBUG -pipe
+#CFLAGS=-std=c++11 -Ofast -march=native -pipe
+CFLAGS=-std=c++11 -O0 -g -DDEBUG -pipe
 BINDIR=bin
 OBJDIR=obj
 SRCDIR=src
@@ -53,10 +53,10 @@ $(OBJDIR)/train.o: $(SRCDIR)/train.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypothes
 $(OBJDIR)/rerank.o: $(SRCDIR)/rerank.cc $(SRCDIR)/utils.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/kbestlist.h $(SRCDIR)/reranker.h
 	g++ -c $(CFLAGS) $(INCS) $< -o $@
 
-$(OBJDIR)/gaurav.o: $(SRCDIR)/gaurav.cc $(SRCDIR)/utils.h $(SRCDIR)/gaurav.h $(SRCDIR)/context.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/context.h
+$(OBJDIR)/gaurav.o: $(SRCDIR)/gaurav.cc $(SRCDIR)/utils.h $(SRCDIR)/gaurav.h $(SRCDIR)/context.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/context.h $(SRCDIR)/expr_cache.h
 	g++ -c $(CFLAGS) $(INCS) $< -o $@
 
-$(OBJDIR)/feature_extractor.o: $(SRCDIR)/feature_extractor.cc $(SRCDIR)/feature_extractor.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/utils.h $(SRCDIR)/kbestlist.h $(SRCDIR)/gaurav.h $(SRCDIR)/context.h $(SRCDIR)/dataview.h
+$(OBJDIR)/feature_extractor.o: $(SRCDIR)/feature_extractor.cc $(SRCDIR)/feature_extractor.h $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/utils.h $(SRCDIR)/kbestlist.h $(SRCDIR)/gaurav.h $(SRCDIR)/context.h $(SRCDIR)/dataview.h $(SRCDIR)/expr_cache.h
 	g++ -c $(CFLAGS) $(INCS) $< -o $@
 
 $(OBJDIR)/sandbox.o: $(SRCDIR)/sandbox.cc $(SRCDIR)/kbest_hypothesis.h $(SRCDIR)/utils.h

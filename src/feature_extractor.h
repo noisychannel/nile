@@ -11,6 +11,7 @@
 
 #include "kbestlist.h"
 #include "utils.h"
+#include "expr_cache.h"
 #include "gaurav.h"
 #include "dataview.h"
 
@@ -74,11 +75,10 @@ private:
   GauravsFeatureExtractor();
   GauravDataView* data;
   GauravsModel* gauravs_model;
-  mutable map<tuple<unsigned, unsigned>, Expression> srcExpCache;
-  mutable map<tuple<unsigned, unsigned>, Expression> tgtExpCache;
   bool has_parent;
   unsigned sent_index;
   unsigned hyp_index;
+  mutable ExpCache exp_cache;
 
   friend class boost::serialization::access;
   template<class Archive>

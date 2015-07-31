@@ -8,6 +8,7 @@
 #include "cnn/lstm.h"
 #include "cnn/gru.h"
 #include "context.h"
+#include "expr_cache.h"
 
 using namespace std;
 using namespace cnn;
@@ -37,8 +38,7 @@ public:
   void InitializeEmbeddings(const string& filename, bool is_source);
   Expression GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt,
       const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg,
-      map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
-      map<tuple<unsigned, unsigned>, Expression>& tgtExpCache);
+      ExpCache& exp_cache);
   vector<unsigned> ConvertSourceSentence(const string& words);
   vector<unsigned> ConvertSourceSentence(const vector<string>& words);
   vector<unsigned> ConvertTargetSentence(const string& words);
@@ -103,9 +103,7 @@ private:
   // create the "contextual-rule" embedding.
   // This function returns the contextual rule embedding for one context
   // instance.
-  Expression BuildRNNGraph(Context c, ComputationGraph& hg,
-      map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
-      map<tuple<unsigned, unsigned>, Expression>& tgtExpCache);
+  Expression BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache& exp_cache);
 
   // Reads a sequence of contexts built for an n-best hypothesis (in association
   // with the source side sentence) and runs the CRNN model to get rule
@@ -115,14 +113,12 @@ private:
   // vector for the hypothesis. This may change in the future.
   // TODO (gaurav)
   Expression BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg,
-        map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
-        map<tuple<unsigned, unsigned>, Expression>& tgtExpCache);
+        ExpCache& exp_cache);
 
   Expression getRNNRuleContext(
     const vector<unsigned>& src, const vector<unsigned>& tgt,
     const vector<PhraseAlignmentLink>& links, ComputationGraph& hg,
-    map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
-    map<tuple<unsigned, unsigned>, Expression>& tgtExpCache);
+    ExpCache& exp_cache);
 
   friend class boost::serialization::access;
   template<class Archive>

@@ -1,5 +1,4 @@
 //TODO:
-//1. Reverse the direction of the right context RNN
 //2. Use V.c from the output of the RNNs instead of c
 
 #include <fstream>
@@ -204,8 +203,7 @@ void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Di
 
 Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt,
     const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg,
-    map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
-    map<tuple<unsigned, unsigned>, Expression>& tgtExpCache) {
+      ExpCache& exp_cache) {
   assert(src.size() > 0);
   vector<unsigned> src2 = src;
   vector<unsigned> tgt2 = tgt;
@@ -221,7 +219,8 @@ Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vecto
     link.tgt_end++;
   }
 
-  return getRNNRuleContext(src2, tgt2, alignment2, cg, srcExpCache, tgtExpCache);
+  return getRNNRuleContext(src2, tgt2, alignment2, cg, exp_cache);
+
 }
 
 vector<unsigned> GauravsModel::ConvertSourceSentence(const string& sentence) {
@@ -263,19 +262,17 @@ unsigned GauravsModel::OutputDimension() const {
 Expression GauravsModel::getRNNRuleContext(
     const vector<unsigned>& src, const vector<unsigned>& tgt,
     const vector<PhraseAlignmentLink>& links, ComputationGraph& hg,
-    map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
-    map<tuple<unsigned, unsigned>, Expression>& tgtExpCache) {
+    ExpCache& exp_cache) {
 
   assert (links.size() > 0);
   assert (src.size() > 0);
   assert (tgt.size() > 0);
   vector<Context> contexts = getContext(src, tgt, links);
-  return BuildRuleSequenceModel(contexts, hg, srcExpCache, tgtExpCache);
+  return BuildRuleSequenceModel(contexts, hg, exp_cache);
 }
 
 Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg,
-    map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
-    map<tuple<unsigned, unsigned>, Expression>& tgtExpCache) {
+    ExpCache& exp_cache) {
   assert (cSeq.size() > 0);
   //TODO; Is this count right ?
   vector<Expression> ruleEmbeddings;
@@ -294,7 +291,7 @@ Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, Com
       coverageEmbeddings.push_back(currentCoverageEmbedding);
     }
 
-    Expression currentEmbedding = BuildRNNGraph(currentContext, hg, srcExpCache, tgtExpCache);
+    Expression currentEmbedding = BuildRNNGraph(currentContext, hg, exp_cache);
     ruleEmbeddings.push_back(currentEmbedding);
   }
   assert (ruleEmbeddings.size() > 0);
@@ -361,15 +358,13 @@ Expression GauravsModel::BuildCoverageGraph(const Context& currentContext, const
   return sum(convVector);
 }
 
-Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg,
-    map<tuple<unsigned, unsigned>, Expression>& srcExpCache,
-    map<tuple<unsigned, unsigned>, Expression>& tgtExpCache) {
+Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache& exp_cache) {
 
   Expression srcConv;
-  auto srcIt = srcExpCache.find(c.srcIdx);
+  auto srcIt = exp_cache.srcExpCache.find(c.srcIdx);
   //cerr << get<0>(c.srcIdx) << "," << get<1>(c.srcIdx) << endl;
   //First check to see if the source is cached
-  if (srcIt != srcExpCache.end()) {
+  if (srcIt != exp_cache.srcExpCache.end()) {
     srcConv = srcIt->second;
   }
   else {
@@ -396,13 +391,12 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg,
     convVector.push_back(hiddens_cr.back());
     convVector.push_back(hiddens_rs.back());
     srcConv = sum(convVector);
-    srcExpCache[c.srcIdx] = srcConv;
-    //srcExpCache.insert(make_pair(c.srcIdx, srcConv));
+    exp_cache.srcExpCache.insert(make_pair(c.srcIdx, srcConv));
   }
 
   Expression tgtConv;
-  auto tgtIt = tgtExpCache.find(c.tgtIdx);
-  if (tgtIt != tgtExpCache.end()) {
+  auto tgtIt = exp_cache.tgtExpCache.find(c.tgtIdx);
+  if (tgtIt != exp_cache.tgtExpCache.end()) {
     tgtConv = tgtIt->second;
   }
   else {
@@ -412,7 +406,7 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg,
                                 {tgt_embeddings, p_R_rt, p_bias_rt}, builder_rule_target);
     assert (hiddens_rt.size() > 0);
     tgtConv = hiddens_rt.back();
-    tgtExpCache.insert(make_pair(c.tgtIdx, tgtConv));
+    exp_cache.tgtExpCache.insert(make_pair(c.tgtIdx, tgtConv));
   }
   vector<Expression> convVector{srcConv, tgtConv};
   Expression conv = sum(convVector);
