@@ -30,7 +30,8 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
 
 class GauravsModel {
 public:
-  GauravsModel(Model& cnn_model, const string& src_embedding_filename, const string& tgt_embedding_filename);
+  GauravsModel(Model& cnn_model, const string& src_embedding_filename, const string& tgt_embedding_filename,
+      bool reordering = false);
   void InitializeParameters(Model* cnn_model);
   void InitializeEmbeddings(const string& filename, bool is_source);
   Expression GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt,
@@ -48,6 +49,7 @@ public:
   const string kEos = "</s>";
 private:
   GauravsModel();
+  bool use_reordering_model;
   void BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out);
   LookupParameters* src_embeddings;
   LookupParameters* tgt_embeddings;
@@ -69,14 +71,29 @@ private:
   Parameters* p_R_rt;
   Parameters* p_bias_rt;
 
+  // Parameters for re-ordering model
+  Parameters* p_R_ce;
+  Parameters* p_bias_ce;
+  Parameters* p_R_pe;
+  Parameters* p_bias_pe;
+
   LSTMBuilder builder_context_left;
   LSTMBuilder builder_context_right;
   LSTMBuilder builder_rule_source;
   LSTMBuilder builder_rule_target;
 
+  LSTMBuilder coverage_builder_context_left;
+  LSTMBuilder coverage_builder_context_right;
+  LSTMBuilder coverage_builder_current_emb;
+  LSTMBuilder coverage_builder_prev_emb;
+
   // This is a general recurrence operation for an RNN over a sequence
   // Reads in a sequence, creates and returns hidden states.
   vector<Expression> Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder);
+  vector<Expression> CoverageRecurrence(const vector<double>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder);
+
+  Expression BuildCoverageGraph(const Context& currentContext, ComputationGraph& hg);
+  Expression BuildCoverageGraph(const Context& currentContext, const Context& previousContext, ComputationGraph& hg);
 
   // For a given context (source rule, target rule, left context and
   // right context, this generates the symbolic graph for the

@@ -90,7 +90,9 @@ GauravsModel::GauravsModel() {
   p_bias_rt = NULL;
 }
 
-GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filename, const string& tgt_embedding_filename) {
+GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filename,
+    const string& tgt_embedding_filename,
+    bool reordering) {
   // XXX: We should read these in from somewhere
   hidden_size = 71;
   num_layers = 1;
@@ -105,12 +107,14 @@ GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filenam
   src_dict.Convert(kEos);
   tgt_dict.Convert(kUnk);
   tgt_dict.Convert(kBos);
-  tgt_dict.Convert(kEos); 
+  tgt_dict.Convert(kEos);
 
   InitializeParameters(&cnn_model);
 
   InitializeEmbeddings(src_embedding_filename, true);
   InitializeEmbeddings(tgt_embedding_filename, false);
+
+  use_reordering_model = reordering;
 }
 
 void GauravsModel::InitializeEmbeddings(const string& filename, bool is_source) {
@@ -156,6 +160,13 @@ void GauravsModel::InitializeParameters(Model* cnn_model) {
   builder_rule_source = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
   builder_rule_target = LSTMBuilder(num_layers, tgt_embedding_dimension, hidden_size, cnn_model);
 
+  if (use_reordering_model) {
+    coverage_builder_context_left = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
+    coverage_builder_context_right = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
+    coverage_builder_current_emb = LSTMBuilder(num_layers, 1, hidden_size, cnn_model);
+    coverage_builder_prev_emb = LSTMBuilder(num_layers, 1, hidden_size, cnn_model);
+  }
+
   p_R_cl = cnn_model->add_parameters({hidden_size, hidden_size});
   p_bias_cl = cnn_model->add_parameters({hidden_size});
   p_R_cr = cnn_model->add_parameters({hidden_size, hidden_size});
@@ -164,6 +175,13 @@ void GauravsModel::InitializeParameters(Model* cnn_model) {
   p_bias_rs = cnn_model->add_parameters({hidden_size});
   p_R_rt = cnn_model->add_parameters({hidden_size, hidden_size});
   p_bias_rt = cnn_model->add_parameters({hidden_size});
+
+  if (use_reordering_model) {
+    p_R_ce = cnn_model->add_parameters({hidden_size, hidden_size});
+    p_bias_ce = cnn_model->add_parameters({hidden_size});
+    p_R_pe = cnn_model->add_parameters({hidden_size, hidden_size});
+    p_bias_pe = cnn_model->add_parameters({hidden_size});
+  }
 
   src_embeddings = cnn_model->add_lookup_parameters(src_vocab_size, {src_embedding_dimension});
   tgt_embeddings = cnn_model->add_lookup_parameters(tgt_vocab_size, {tgt_embedding_dimension});
@@ -261,14 +279,86 @@ Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, Com
   assert (cSeq.size() > 0);
   //TODO; Is this count right ?
   vector<Expression> ruleEmbeddings;
+  vector<Expression> coverageEmbeddings;
   for (unsigned i = 0; i < cSeq.size(); ++i) {
     const Context& currentContext = cSeq[i];
+    if (use_reordering_model) {
+      Expression currentCoverageEmbedding;
+      if (i != 0) {
+        const Context& previousContext = cSeq[i-1];
+        Expression currentCoverageEmbedding = BuildCoverageGraph(currentContext, previousContext, hg);
+      }
+      else {
+        Expression currentCoverageEmbedding = BuildCoverageGraph(currentContext, hg);
+      }
+      coverageEmbeddings.push_back(currentCoverageEmbedding);
+    }
+
     Expression currentEmbedding = BuildRNNGraph(currentContext, hg, srcExpCache, tgtExpCache);
     ruleEmbeddings.push_back(currentEmbedding);
   }
   assert (ruleEmbeddings.size() > 0);
   assert (ruleEmbeddings.size() == cSeq.size());
+  if (use_reordering_model) {
+    assert (coverageEmbeddings.size() > 0);
+    assert (coverageEmbeddings.size() == cSeq.size());
+  }
+  //TODO: Use coverage embeddings, somehow?
   return sum(ruleEmbeddings);
+}
+
+Expression GauravsModel::BuildCoverageGraph(const Context& currentContext, ComputationGraph& hg) {
+  coverage_builder_context_left.new_graph(hg);
+  coverage_builder_context_right.new_graph(hg);
+  coverage_builder_current_emb.new_graph(hg);
+  coverage_builder_context_left.start_new_sequence();
+  coverage_builder_context_right.start_new_sequence();
+  coverage_builder_current_emb.start_new_sequence();
+  vector<Expression> hiddens_cl = Recurrence(currentContext.leftContext, hg,
+                              {src_embeddings, p_R_cl, p_bias_cl}, coverage_builder_context_left);
+  vector<Expression> hiddens_cr = Recurrence(currentContext.rightContext, hg,
+                              {src_embeddings, p_R_cr, p_bias_cr}, coverage_builder_context_right);
+  vector<Expression> hiddens_ce = CoverageRecurrence(currentContext.coverage, hg,
+                              {NULL, p_R_ce, p_bias_ce}, coverage_builder_current_emb);
+  assert (hiddens_cl.size() > 0);
+  assert (hiddens_cr.size() > 0);
+  assert (hiddens_ce.size() > 0);
+  vector<Expression> convVector;
+  convVector.push_back(hiddens_cl.back());
+  convVector.push_back(hiddens_cr.back());
+  convVector.push_back(hiddens_ce.back());
+  return sum(convVector);
+}
+
+Expression GauravsModel::BuildCoverageGraph(const Context& currentContext, const Context& previousContext,
+    ComputationGraph& hg) {
+  coverage_builder_context_left.new_graph(hg);
+  coverage_builder_context_right.new_graph(hg);
+  coverage_builder_current_emb.new_graph(hg);
+  coverage_builder_prev_emb.new_graph(hg);
+  coverage_builder_context_left.start_new_sequence();
+  coverage_builder_context_right.start_new_sequence();
+  coverage_builder_current_emb.start_new_sequence();
+  coverage_builder_prev_emb.start_new_sequence();
+  vector<Expression> hiddens_cl = Recurrence(currentContext.leftContext, hg,
+                              {src_embeddings, p_R_cl, p_bias_cl}, coverage_builder_context_left);
+  vector<Expression> hiddens_cr = Recurrence(currentContext.rightContext, hg,
+                              {src_embeddings, p_R_cr, p_bias_cr}, coverage_builder_context_right);
+  vector<Expression> hiddens_ce = CoverageRecurrence(currentContext.coverage, hg,
+                              {NULL, p_R_ce, p_bias_ce}, coverage_builder_current_emb);
+  vector<Expression> hiddens_pe = CoverageRecurrence(previousContext.coverage, hg,
+                              {NULL, p_R_pe, p_bias_pe}, coverage_builder_prev_emb);
+  assert (hiddens_cl.size() > 0);
+  assert (hiddens_cr.size() > 0);
+  assert (hiddens_ce.size() > 0);
+  assert (hiddens_pe.size() > 0);
+  vector<Expression> convVector;
+  convVector.push_back(hiddens_cl.back());
+  convVector.push_back(hiddens_cr.back());
+  convVector.push_back(hiddens_ce.back());
+  convVector.push_back(hiddens_pe.back());
+
+  return sum(convVector);
 }
 
 Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg,
@@ -327,6 +417,25 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg,
   vector<Expression> convVector{srcConv, tgtConv};
   Expression conv = sum(convVector);
   return conv;
+}
+
+vector<Expression> GauravsModel::CoverageRecurrence(const vector<double>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder) {
+  assert (sequence.size() > 0);
+  const unsigned sequenceLen = sequence.size();
+  vector<Expression> hiddenStates;
+  Expression i_R = parameter(hg, p.p_R);
+  Expression i_bias = parameter(hg, p.p_bias);
+  for (unsigned t = 0; t < sequenceLen; ++t) {
+    // Get the embedding for the current input token
+    Expression i_x_t = input(hg, sequence[t]);
+    // y_t = RNN(x_t)
+    Expression i_y_t = builder.add_input(i_x_t);
+    // r_T = bias + R * y_t
+    Expression i_r_t = i_bias + i_R * i_y_t;
+    Expression i_h_t = tanh(i_r_t);
+    hiddenStates.push_back(i_h_t);
+  }
+  return hiddenStates;
 }
 
 vector<Expression> GauravsModel::Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder) {
