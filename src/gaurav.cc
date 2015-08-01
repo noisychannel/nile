@@ -87,6 +87,14 @@ GauravsModel::GauravsModel() {
   p_bias_rs = NULL;
   p_R_rt = NULL;
   p_bias_rt = NULL;
+
+  p_R_pe = NULL;
+  p_bias_pe = NULL;
+  p_R_ce = NULL;
+  p_bias_ce = NULL;
+
+  p_R_mlp = NULL;
+  p_bias_mlp = NULL;
 }
 
 GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filename,
@@ -174,6 +182,9 @@ void GauravsModel::InitializeParameters(Model* cnn_model) {
   p_bias_rs = cnn_model->add_parameters({hidden_size});
   p_R_rt = cnn_model->add_parameters({hidden_size, hidden_size});
   p_bias_rt = cnn_model->add_parameters({hidden_size});
+
+  p_R_mlp = cnn_model->add_parameters({hidden_size, 4 * hidden_size});
+  p_bias_mlp = cnn_model->add_parameters({hidden_size});
 
   if (use_reordering_model) {
     p_R_ce = cnn_model->add_parameters({hidden_size, hidden_size});
@@ -360,14 +371,13 @@ Expression GauravsModel::BuildCoverageGraph(const Context& currentContext, const
 
 Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache& exp_cache) {
 
-  Expression srcConv;
+  vector<Expression> convVector;
   auto srcIt = exp_cache.srcExpCache.find(c.srcIdx);
   //First check to see if the source is cached
   if (srcIt != exp_cache.srcExpCache.end()) {
-    srcConv = srcIt->second;
+    convVector = srcIt->second;
   }
   else {
-    vector<Expression> convVector;
 
     auto lContextIt = exp_cache.lContextCache.find(get<0>(c.srcIdx));
     if (lContextIt != exp_cache.lContextCache.end()) {
@@ -413,15 +423,14 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache
       convVector.push_back(hiddens_rs.back());
       exp_cache.sPhraseCache.insert(make_pair(c.srcIdx, hiddens_rs.back()));
     }
-
-    srcConv = sum(convVector);
-    exp_cache.srcExpCache.insert(make_pair(c.srcIdx, srcConv));
+    exp_cache.srcExpCache.insert(make_pair(c.srcIdx, convVector));
   }
 
-  Expression tgtConv;
+  vector<Expression> currentConv = convVector;
+
   auto tgtIt = exp_cache.tPhraseCache.find(c.tgtIdx);
   if (tgtIt != exp_cache.tPhraseCache.end()) {
-    tgtConv = tgtIt->second;
+    currentConv.push_back(tgtIt->second);
   }
   else {
     builder_rule_target.new_graph(hg);
@@ -429,12 +438,15 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache
     vector<Expression> hiddens_rt = Recurrence(c.targetRule, hg,
                                 {tgt_embeddings, p_R_rt, p_bias_rt}, builder_rule_target);
     assert (hiddens_rt.size() > 0);
-    tgtConv = hiddens_rt.back();
-    exp_cache.tPhraseCache.insert(make_pair(c.tgtIdx, tgtConv));
+    currentConv.push_back(hiddens_rt.back());
+    exp_cache.tPhraseCache.insert(make_pair(c.tgtIdx, hiddens_rt.back()));
   }
-  vector<Expression> convVector{srcConv, tgtConv};
-  Expression conv = sum(convVector);
-  return conv;
+
+  Expression mlp_input = concatenate(currentConv);
+  Expression mlp_i_R = parameter(hg, p_R_mlp);
+  Expression mlp_i_bias = parameter(hg, p_bias_mlp);
+  Expression mlp_i_h = mlp_i_bias + mlp_i_R * mlp_input;
+  return rectify(mlp_i_h);
 }
 
 vector<Expression> GauravsModel::CoverageRecurrence(const vector<double>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder) {

@@ -78,6 +78,9 @@ private:
   Parameters* p_R_pe;
   Parameters* p_bias_pe;
 
+  Parameters* p_R_mlp;
+  Parameters* p_bias_mlp;
+
   LSTMBuilder builder_context_left;
   LSTMBuilder builder_context_right;
   GRUBuilder builder_rule_source;
