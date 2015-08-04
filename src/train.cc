@@ -280,7 +280,9 @@ int main(int argc, char** argv) {
 
       // EBLEU
       if (true) {
-        Expression ebleu = softmax(concatenate(model_scores)) * concatenate(metric_scores);
+        Expression hyp_probs = softmax(concatenate(model_scores));
+        Expression metric_score_vector = concatenate(metric_scores);
+        Expression ebleu = dot_product(hyp_probs, metric_score_vector);
         Expression final = -ebleu;
         //reranker_model->BuildComputationGraph(hypothesis_features, metric_scores, cg);
       }
