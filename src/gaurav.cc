@@ -95,6 +95,8 @@ GauravsModel::GauravsModel() {
 
   p_R_mlp = NULL;
   p_bias_mlp = NULL;
+
+  use_reordering_model = false;
 }
 
 GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filename,
