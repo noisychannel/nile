@@ -1,6 +1,6 @@
 CC=g++
 EIGEN=./.eigen
-CNN=./.cnn
+CNN_DIR=./.cnn
 CNN_BUILD_DIR=$(CNN_DIR)/build
 INCS=-I$(CNN_DIR) -I$(CNN_BUILD_DIR) -I$(EIGEN)
 LIBS=-L$(CNN_BUILD_DIR)/cnn/
