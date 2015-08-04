@@ -87,6 +87,10 @@ int main(int argc, char** argv) {
 
   cerr << "Reading model...\n";
   ifstream model_file(model_filename);
+  if (!model_file.is_open()) {
+    cerr << "ERROR: Unable to open model file " << model_filename << "!\n";
+    return 1;
+  }
   boost::archive::text_iarchive ia(model_file);
   ia >> reranker_model;
   ia >> data_view;
