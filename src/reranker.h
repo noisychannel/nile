@@ -17,11 +17,11 @@ using namespace cnn::expr;
 class RerankerModel {
 public:
   explicit RerankerModel(unsigned num_dimensions);
-  Expression BatchScore(const vector<Expression>& features, ComputationGraph& cg);
-  void BuildComputationGraph(const vector<Expression>& features, const vector<Expression>& gold_scores, ComputationGraph& cg);
+  Expression BatchScore(const vector<Expression>& features, ComputationGraph& cg) const;
+  void BuildComputationGraph(const vector<Expression>& features, const vector<Expression>& gold_scores, ComputationGraph& cg) const;
 
   virtual ~RerankerModel();
-  virtual Expression score(Expression h, ComputationGraph& cg) = 0;
+  virtual Expression score(Expression h, ComputationGraph& cg) const = 0;
 
   virtual void InitializeParameters(Model* cnn_model) = 0;
 protected:
@@ -39,7 +39,7 @@ class LinearRerankerModel : public RerankerModel {
 public:
   explicit LinearRerankerModel(Model* cnn_model, unsigned num_dimensions);
   void InitializeParameters(Model* cnn_model);
-  Expression score(Expression h, ComputationGraph& cg);
+  Expression score(Expression h, ComputationGraph& cg) const;
 
 private:
   LinearRerankerModel();
@@ -57,7 +57,7 @@ class NonlinearRerankerModel : public RerankerModel {
 public:
   explicit NonlinearRerankerModel(Model* cnn_model, unsigned num_dimensions, unsigned hidden_layer_size);
   void InitializeParameters(Model* cnn_model);
-  Expression score(Expression h, ComputationGraph& cg);
+  Expression score(Expression h, ComputationGraph& cg) const;
 
 private:
   NonlinearRerankerModel(); 

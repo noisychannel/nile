@@ -128,7 +128,7 @@ RerankerModel* CreateRerankerModel(Model& cnn_model, unsigned num_dimensions, co
   return reranker_model;
 }
 
-void Serialize(const RerankerModel* reranker_model, const KbestListDataView* data_view, const KbestFeatureExtractor* feature_extractor, const Model& cnn_model) {
+void Serialize(const RerankerModel* reranker_model, const KbestListInRamDataView* data_view, const KbestFeatureExtractor* feature_extractor, const Model& cnn_model) {
   ftruncate(fileno(stdout), 0);
   fseek(stdout, 0, SEEK_SET);
   boost::archive::text_oarchive oa(cout);
@@ -201,8 +201,8 @@ int main(int argc, char** argv) {
   cnn::Initialize(argc, argv);
   KbestListInRam* train_kbest_list = NULL;
   KbestListInRam* dev_kbest_list = NULL;
-  KbestListDataView* train_data_view = NULL;
-  KbestListDataView* dev_data_view = NULL;
+  KbestListInRamDataView* train_data_view = NULL;
+  KbestListInRamDataView* dev_data_view = NULL;
   KbestFeatureExtractor* train_feature_extractor = NULL; // These two feature extractors should be the same
   KbestFeatureExtractor* dev_feature_extractor = NULL;
 
@@ -264,16 +264,63 @@ int main(int argc, char** argv) {
     while (train_feature_extractor->MoveToNextSentence()) {
       num_sentences++;
       cerr << num_sentences << "\r";
+      unsigned sent_index = num_sentences - 1;
     
-      vector<Expression> hypothesis_features;
-      vector<Expression> metric_scores;
+      unsigned best = train_kbest_list->BestHypIndex(sent_index);
       ComputationGraph cg;
-      for (; train_feature_extractor->MoveToNextHypothesis(); ) {
-        hypothesis_features.push_back(train_feature_extractor->GetFeatures(cg));
+
+      vector<Expression> metric_scores;
+      vector<Expression> model_scores;
+      for (unsigned hyp_index = 0; train_feature_extractor->MoveToNextHypothesis(); ++hyp_index) {
+        Expression hypothesis_features = train_feature_extractor->GetFeatures(cg);
         metric_scores.push_back(train_feature_extractor->GetMetricScore(cg));
+        Expression model_score = reranker_model->score(hypothesis_features, cg);
+        model_scores.push_back(model_score);
       }
 
-      reranker_model->BuildComputationGraph(hypothesis_features, metric_scores, cg);
+      // EBLEU
+      if (true) {
+        Expression ebleu = softmax(concatenate(model_scores)) * concatenate(metric_scores);
+        Expression final = -ebleu;
+        //reranker_model->BuildComputationGraph(hypothesis_features, metric_scores, cg);
+      }
+      // 1-vs-rest
+      else if (false) {
+        Expression hyp_probs = softmax(concatenate(model_scores));
+        Expression loss = hinge(hyp_probs, &best, 0.1);
+      }
+      // PRO
+      else if (false) {
+        if (model_scores.size() < 2) {
+          continue;
+        }
+        vector<Expression> losses;
+        for (unsigned i = 0, j = 0; i < 100; ++i, ++j) {
+          unsigned a = rand() % metric_scores.size();
+          unsigned b = rand() % metric_scores.size();
+          int comp = train_kbest_list->CompareHyps(sent_index, a, b);
+          unsigned good, bad;
+          if (comp < 0) {
+            good = b;
+            bad = a;
+          }
+          else if (comp > 0) {
+            good = a;
+            bad = b;
+          }
+          else {
+            i -= 1;
+            if (j > 100 * i && i > 100) {
+              assert (false && "Unable to find good hypothesis pairs!");
+            }
+            continue;
+          }
+
+          Expression loss = 1.0 - (model_scores[bad] - model_scores[good]);
+          losses.push_back(loss);
+        }
+        Expression loss = sum(losses);
+      }
 
       loss += as_scalar(cg.forward());
       if (iteration != 0) {

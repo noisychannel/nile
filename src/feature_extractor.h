@@ -25,7 +25,7 @@ public:
   virtual unsigned num_dimensions() const = 0;
   virtual void Reset() = 0;
   virtual void InitializeParameters(Model* cnn_model) = 0;
-  virtual void SetDataPointer(KbestListDataView* data) = 0;
+  virtual void SetDataPointer(KbestListInRamDataView* data) = 0;
 
   friend class boost::serialization::access;
   template<class Archive>
@@ -43,7 +43,7 @@ public:
   Expression GetMetricScore(ComputationGraph& cg) const;
   unsigned num_dimensions() const;
   void InitializeParameters(Model* cnn_model);
-  void SetDataPointer(KbestListDataView* data);
+  void SetDataPointer(KbestListInRamDataView* data);
 private:
   SimpleKbestFeatureExtractor();
   unsigned sent_index;
@@ -70,7 +70,7 @@ public:
   unsigned num_dimensions() const; 
   void Reset();
   void InitializeParameters(Model* cnn_model);
-  void SetDataPointer(KbestListDataView* data);
+  void SetDataPointer(KbestListInRamDataView* data);
 private:
   GauravsFeatureExtractor();
   GauravDataView* data;
@@ -101,7 +101,7 @@ public:
   unsigned num_dimensions() const; 
   void Reset();
   void InitializeParameters(Model* cnn_model);
-  void SetDataPointer(KbestListDataView* data);
+  void SetDataPointer(KbestListInRamDataView* data);
 private:
   CombinedFeatureExtractor();
   CombinedDataView* data;

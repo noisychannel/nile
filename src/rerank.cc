@@ -80,8 +80,8 @@ int main(int argc, char** argv) {
   cnn::Initialize(argc, argv);
 
   RerankerModel* reranker_model = NULL;
-  KbestList* kbest_list = new KbestListInRam(kbest_filename);
-  KbestListDataView* data_view = NULL;
+  KbestListInRam* kbest_list = new KbestListInRam(kbest_filename);
+  KbestListInRamDataView* data_view = NULL;
   KbestFeatureExtractor* feature_extractor = NULL;
   Model cnn_model;
 

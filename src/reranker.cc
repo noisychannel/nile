@@ -18,7 +18,7 @@ RerankerModel::RerankerModel(unsigned num_dimensions) : num_dimensions(num_dimen
 
 RerankerModel::~RerankerModel() {}
 
-Expression RerankerModel::BatchScore(const vector<Expression>& features, ComputationGraph& cg) {
+Expression RerankerModel::BatchScore(const vector<Expression>& features, ComputationGraph& cg) const {
   assert (features.size() > 0);
   vector<Expression> model_scores(features.size());
   for (unsigned i = 0; i < features.size(); ++i) {
@@ -28,12 +28,11 @@ Expression RerankerModel::BatchScore(const vector<Expression>& features, Computa
   return model_score_vector;
 }
 
-void RerankerModel::BuildComputationGraph(const vector<Expression>& features, const vector<Expression>& metric_scores, ComputationGraph& cg) {
+void RerankerModel::BuildComputationGraph(const vector<Expression>& features, const vector<Expression>& metric_scores, ComputationGraph& cg) const {
   Expression model_score_vector = BatchScore(features, cg);
+  Expression metric_score_vector = concatenate(metric_scores);
   Expression hyp_probs = softmax(model_score_vector);
-  assert (features.size() < LONG_MAX);
-  Expression gold_scores = concatenate(metric_scores);
-  Expression ebleu = dot_product(hyp_probs, gold_scores);
+  Expression ebleu = dot_product(hyp_probs, metric_score_vector);
   Expression loss = -ebleu;
 }
 
@@ -49,7 +48,7 @@ void LinearRerankerModel::InitializeParameters(Model* cnn_model) {
   p_w = cnn_model->add_parameters({1, num_dimensions});
 }
 
-Expression LinearRerankerModel::score(Expression h, ComputationGraph& cg) {
+Expression LinearRerankerModel::score(Expression h, ComputationGraph& cg) const {
   Expression w = parameter(cg, p_w);
   Expression s = w * h;
   return s;
@@ -70,7 +69,7 @@ void NonlinearRerankerModel::InitializeParameters(Model* cnn_model) {
   p_b = cnn_model->add_parameters({hidden_size});
 }
 
-Expression NonlinearRerankerModel::score(Expression h, ComputationGraph& cg) {
+Expression NonlinearRerankerModel::score(Expression h, ComputationGraph& cg) const {
   Expression w1 = parameter(cg, p_w1);
   Expression w2 = parameter(cg, p_w2);
   Expression b = parameter(cg, p_b);

@@ -13,10 +13,10 @@ public:
   virtual void Reset() = 0;
 };
 
-class SimpleKbestList : public KbestList {
+class SimpleKbestListInRam : public KbestList {
 public:
-  explicit SimpleKbestList(string filename);
-  ~SimpleKbestList();
+  explicit SimpleKbestListInRam(string filename);
+  ~SimpleKbestListInRam();
   bool NextSet(vector<KbestHypothesis>& out);
   void Reset();
 private:
@@ -34,10 +34,12 @@ public:
   bool NextSet(vector<KbestHypothesis>& out);
   void Reset();
   void Shuffle();
-  KbestHypothesis Get(unsigned sent_index, unsigned hyp_index);
+  KbestHypothesis Get(unsigned sent_index, unsigned hyp_index) const;
+  unsigned BestHypIndex(unsigned sent_index) const;
+  int CompareHyps(unsigned sent_index, unsigned hyp_index_a, unsigned hyp_index_b) const;
 private:
   bool done_loading;
-  SimpleKbestList simple_kbest;
+  SimpleKbestListInRam simple_kbest;
   vector<vector<KbestHypothesis> > hypotheses;
   vector<vector<KbestHypothesis> >::iterator it;
 };

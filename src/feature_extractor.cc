@@ -23,7 +23,7 @@ void SimpleKbestFeatureExtractor::Reset() {
   hyp_index = -1;
 }
 
-void SimpleKbestFeatureExtractor::SetDataPointer(KbestListDataView* data) {
+void SimpleKbestFeatureExtractor::SetDataPointer(KbestListInRamDataView* data) {
   this->data = dynamic_cast<SimpleDataView*>(data);
   Reset();
 }
@@ -85,7 +85,7 @@ GauravsFeatureExtractor::~GauravsFeatureExtractor() {
   }
 }
 
-void GauravsFeatureExtractor::SetDataPointer(KbestListDataView* data) {
+void GauravsFeatureExtractor::SetDataPointer(KbestListInRamDataView* data) {
   this->data = dynamic_cast<GauravDataView*>(data);
   Reset();
 }
@@ -198,7 +198,7 @@ void CombinedFeatureExtractor::InitializeParameters(Model* cnn_model) {
   gauravs_extractor->InitializeParameters(cnn_model);
 }
 
-void CombinedFeatureExtractor::SetDataPointer(KbestListDataView* data) {
+void CombinedFeatureExtractor::SetDataPointer(KbestListInRamDataView* data) {
   this->data = dynamic_cast<CombinedDataView*>(data);
   simple_extractor->SetDataPointer(this->data->simple);
   gauravs_extractor->SetDataPointer(this->data->gaurav);

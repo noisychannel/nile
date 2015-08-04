@@ -4,29 +4,29 @@ BOOST_CLASS_EXPORT_IMPLEMENT(SimpleDataView)
 BOOST_CLASS_EXPORT_IMPLEMENT(GauravDataView)
 BOOST_CLASS_EXPORT_IMPLEMENT(CombinedDataView)
 
-KbestListDataView::KbestListDataView() {}
-KbestListDataView::KbestListDataView(KbestList* kbest_list) {}
-KbestListDataView::~KbestListDataView() {}
+KbestListInRamDataView::KbestListInRamDataView() {}
+KbestListInRamDataView::KbestListInRamDataView(KbestListInRam* kbest_list) {}
+KbestListInRamDataView::~KbestListInRamDataView() {}
 
-SimpleDataView::SimpleDataView(KbestList* kbest_list) : max_features(UINT_MAX), num_features_(0) {
+SimpleDataView::SimpleDataView(KbestListInRam* kbest_list) : max_features(UINT_MAX), num_features_(0) {
   Initialize(kbest_list);
 }
 
-SimpleDataView::SimpleDataView(KbestList* kbest_list, SimpleDataView* previous) :  feat2id(previous->feat2id), id2feat(previous->id2feat), num_features_(previous->num_features_), max_features(previous->num_features_) {
+SimpleDataView::SimpleDataView(KbestListInRam* kbest_list, SimpleDataView* previous) :  feat2id(previous->feat2id), id2feat(previous->id2feat), num_features_(previous->num_features_), max_features(previous->num_features_) {
   Initialize(kbest_list);
 }
 
-SimpleDataView::SimpleDataView(KbestList* kbest_list, unsigned max_features) : max_features(max_features), num_features_(0) {
+SimpleDataView::SimpleDataView(KbestListInRam* kbest_list, unsigned max_features) : max_features(max_features), num_features_(0) {
   Initialize(kbest_list);
 }
 
 SimpleDataView::SimpleDataView() : max_features(0), num_features_(0) {}
 
-void SimpleDataView::Initialize(KbestList* kbest_list, const string& source_filename) {
+void SimpleDataView::Initialize(KbestListInRam* kbest_list, const string& source_filename) {
   Initialize(kbest_list);
 }
 
-void SimpleDataView::Initialize(KbestList* kbest_list) {
+void SimpleDataView::Initialize(KbestListInRam* kbest_list) {
   vector<KbestHypothesis> hypotheses;
   while (kbest_list->NextSet(hypotheses)) {
     vector<vector<float> > feats;
@@ -128,7 +128,7 @@ unsigned SimpleDataView::num_features() const {
 
 GauravDataView::GauravDataView() {}
 
-GauravDataView::GauravDataView(KbestList* kbest_list, const string& source_filename) {
+GauravDataView::GauravDataView(KbestListInRam* kbest_list, const string& source_filename) {
   Initialize(kbest_list, source_filename);
 }
 
@@ -146,7 +146,7 @@ void GauravDataView::ReadSource(string filename) {
   f.close();
 }
 
-void GauravDataView::Initialize(KbestList* kbest_list, const string& source_filename) {
+void GauravDataView::Initialize(KbestListInRam* kbest_list, const string& source_filename) {
   ReadSource(source_filename);
   vector<KbestHypothesis> hypotheses;
   while (kbest_list->NextSet(hypotheses)) {
@@ -219,7 +219,7 @@ Expression GauravDataView::GetMetricScore(unsigned sent_index, unsigned hyp_inde
   return input(cg, metric_scores[sent_index][hyp_index]);
 }
 
-CombinedDataView::CombinedDataView(KbestList* kbest_list, const string& source_filename) {
+CombinedDataView::CombinedDataView(KbestListInRam* kbest_list, const string& source_filename) {
   simple = new SimpleDataView(kbest_list);
   kbest_list->Reset();
   gaurav = new GauravDataView(kbest_list, source_filename);
@@ -245,7 +245,7 @@ unsigned CombinedDataView::size() const {
   return s;
 }
 
-void CombinedDataView::Initialize(KbestList* kbest_list, const string& source_filename) {
+void CombinedDataView::Initialize(KbestListInRam* kbest_list, const string& source_filename) {
   simple->Initialize(kbest_list, source_filename);
   kbest_list->Reset();
   gaurav->Initialize(kbest_list, source_filename);

@@ -3,15 +3,15 @@
 
 KbestList::~KbestList() {}
 
-SimpleKbestList::SimpleKbestList(string filename) : filename(filename) {
+SimpleKbestListInRam::SimpleKbestListInRam(string filename) : filename(filename) {
   Reset();
 }
 
-SimpleKbestList::~SimpleKbestList() {
+SimpleKbestListInRam::~SimpleKbestListInRam() {
   Cleanup();
 }
 
-void SimpleKbestList::Cleanup() {
+void SimpleKbestListInRam::Cleanup() {
   if (input_file != NULL) {
     if (input_file->is_open()) {
       input_file->close();
@@ -23,7 +23,7 @@ void SimpleKbestList::Cleanup() {
   }
 }
 
-void SimpleKbestList::Reset() {
+void SimpleKbestListInRam::Reset() {
   input_file = new ifstream(filename);
   if (input_file == NULL || !input_file->is_open()) {
     cerr << "Unable to open kbest file: " << filename << endl;
@@ -34,7 +34,7 @@ void SimpleKbestList::Reset() {
 
 }
 
-bool SimpleKbestList::NextSet(vector<KbestHypothesis>& out) {
+bool SimpleKbestListInRam::NextSet(vector<KbestHypothesis>& out) {
   out.clear();
   if (input_file == NULL) {
     return false;
@@ -111,8 +111,38 @@ void KbestListInRam::Shuffle() {
   random_shuffle(hypotheses.begin(), hypotheses.end());
 }
 
-KbestHypothesis KbestListInRam::Get(unsigned sent_index, unsigned hyp_index) {
+KbestHypothesis KbestListInRam::Get(unsigned sent_index, unsigned hyp_index) const {
   assert (sent_index < hypotheses.size());
   assert (hyp_index < hypotheses[sent_index].size());
   return hypotheses[sent_index][hyp_index];
+}
+
+unsigned KbestListInRam::BestHypIndex(unsigned sent_index) const {
+  assert (sent_index < hypotheses.size());
+  assert (hypotheses[sent_index].size() > 0);
+  unsigned best_index = 0;
+  double best_score = hypotheses[sent_index][0].metric_score;
+  for (unsigned i = 0; i < hypotheses[sent_index].size(); ++i) {
+    if (hypotheses[sent_index][i].metric_score > best_score) {
+      best_index = i;
+      best_score = hypotheses[sent_index][i].metric_score;
+    }
+  }
+  return best_index;
+}
+
+int KbestListInRam::CompareHyps(unsigned sent_index, unsigned hyp_index_a, unsigned hyp_index_b) const {
+  assert (sent_index < hypotheses.size());
+  assert (hyp_index_a < hypotheses[sent_index].size());
+  assert (hyp_index_b < hypotheses[sent_index].size());
+  auto a = hypotheses[sent_index][hyp_index_a].metric_score;
+  auto b = hypotheses[sent_index][hyp_index_b].metric_score;
+  if (a > b) {
+    return 1;
+  } else if (a < b) {
+    return -1;
+  }
+  else {
+    return 0;
+  }
 }
