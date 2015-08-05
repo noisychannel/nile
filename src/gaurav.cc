@@ -11,7 +11,7 @@
 using namespace std;
 
 unsigned GetEmbeddingDimension(string filename) {
-  FILE *f; 
+  FILE *f;
   long long words, size;
   f = fopen(filename.c_str(), "rb");
   if (f == NULL) {
@@ -108,8 +108,11 @@ GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filenam
   src_vocab_size = 50000;
   tgt_vocab_size = 50000;
 
-  src_embedding_dimension = GetEmbeddingDimension(src_embedding_filename); 
-  tgt_embedding_dimension = GetEmbeddingDimension(tgt_embedding_filename); 
+  use_reordering_model = reordering;
+  cerr << "Reordering model is " << (reordering ? "enabled" : "disabled") << endl;
+
+  src_embedding_dimension = GetEmbeddingDimension(src_embedding_filename);
+  tgt_embedding_dimension = GetEmbeddingDimension(tgt_embedding_filename);
 
   src_dict.Convert(kUnk);
   src_dict.Convert(kBos);
@@ -123,7 +126,6 @@ GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filenam
   InitializeEmbeddings(src_embedding_filename, true);
   InitializeEmbeddings(tgt_embedding_filename, false);
 
-  use_reordering_model = reordering;
 }
 
 void GauravsModel::InitializeEmbeddings(const string& filename, bool is_source) {
