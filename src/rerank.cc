@@ -108,6 +108,7 @@ int main(int argc, char** argv) {
 
   unsigned sent_index = 0;
   while (feature_extractor->MoveToNextSentence()) {
+    cerr << sent_index << "\r";
     ComputationGraph cg;
     unsigned best_hyp_index = 0;
     double best_score = 0.0;
