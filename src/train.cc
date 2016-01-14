@@ -165,6 +165,9 @@ int main(int argc, char** argv) {
   ("num_iterations,i", po::value<unsigned>()->default_value(UINT_MAX), "Number of epochs to train for")
   ("gaurav", po::value<vector<string> >()->multitoken(), "Use Gaurav's crazy-ass model. Specify source sentences, source embeddings, target embeddings.")
   ("combined", "Use the normal model in addition to Gaurav's. Specify --gaurav with the necessary files in addition to this flag.")
+  ("ebleu", "Use ebleu loss function (default)")
+  ("pro", "Use pro loss function (100 samples)")
+  ("1vsrest", "Use 1-vs-rest loss function")
   ("help", "Display this help message");
 
   po::positional_options_description positional_options;
@@ -188,6 +191,20 @@ int main(int argc, char** argv) {
       cerr << "Gaurav's model requires these files: source_sentences, source_embeddings, target_embeddings [, dev_source]" << endl;
       return 1;
     }
+  }
+
+  const int kEBLEU = 0;
+  const int kPRO = 1;
+  const int k1VSREST = 2;
+  int loss_function = kEBLEU;
+  if (vm.count("ebleu")) {
+    loss_function = kEBLEU;
+  }
+  else if (vm.count("pro")) {
+    loss_function = kPRO;
+  }
+  else if (vm.count("1vsrest")) {
+    loss_function = k1VSREST;
   }
 
   const string kbest_filename = vm["kbest_filename"].as<string>();
@@ -279,7 +296,7 @@ int main(int argc, char** argv) {
       }
 
       // EBLEU
-      if (true) {
+      if (loss_function == kEBLEU) {
         Expression hyp_probs = softmax(concatenate(model_scores));
         Expression metric_score_vector = concatenate(metric_scores);
         Expression ebleu = dot_product(hyp_probs, metric_score_vector);
@@ -287,12 +304,12 @@ int main(int argc, char** argv) {
         //reranker_model->BuildComputationGraph(hypothesis_features, metric_scores, cg);
       }
       // 1-vs-rest
-      else if (false) {
+      else if (loss_function == k1VSREST) {
         Expression hyp_probs = softmax(concatenate(model_scores));
         Expression loss = hinge(hyp_probs, &best, 0.1);
       }
       // PRO
-      else if (false) {
+      else if (loss_function == kPRO) {
         if (model_scores.size() < 2) {
           continue;
         }
@@ -322,6 +339,9 @@ int main(int argc, char** argv) {
           losses.push_back(loss);
         }
         Expression loss = sum(losses);
+      }
+      else {
+        assert (false);
       }
 
       loss += as_scalar(cg.forward());
