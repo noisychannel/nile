@@ -60,7 +60,7 @@ BOOST_CLASS_EXPORT_KEY(SimpleKbestFeatureExtractor)
 
 class GauravsFeatureExtractor : public KbestFeatureExtractor {
 public: 
-  GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file);
+  GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file, const bool use_concat_mlp);
   GauravsFeatureExtractor(GauravDataView* data, GauravsFeatureExtractor* parent);
   ~GauravsFeatureExtractor();
   bool MoveToNextSentence();
@@ -91,7 +91,7 @@ BOOST_CLASS_EXPORT_KEY(GauravsFeatureExtractor)
 
 class CombinedFeatureExtractor : public KbestFeatureExtractor {
 public:
-  CombinedFeatureExtractor(CombinedDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file);
+  CombinedFeatureExtractor(CombinedDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file, const bool use_concat_mlp);
   CombinedFeatureExtractor(CombinedDataView* data, CombinedFeatureExtractor* parent);
   ~CombinedFeatureExtractor();
   bool MoveToNextSentence();

@@ -93,14 +93,17 @@ GauravsModel::GauravsModel() {
   p_R_ce = NULL;
   p_bias_ce = NULL;
 
-  p_R_mlp = NULL;
-  p_bias_mlp = NULL;
+  p_R_mlp_1 = NULL;
+  p_bias_mlp_1 = NULL;
+  p_R_mlp_2 = NULL;
+  p_bias_mlp_2 = NULL;
 
   use_reordering_model = false;
+  use_concat_mlp = false;
 }
 
 GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filename,
-    const string& tgt_embedding_filename,
+    const string& tgt_embedding_filename, const bool concat_mlp,
     bool reordering) {
   // XXX: We should read these in from somewhere
   hidden_size = 71;
@@ -110,6 +113,9 @@ GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filenam
 
   use_reordering_model = reordering;
   cerr << "Reordering model is " << (reordering ? "enabled" : "disabled") << endl;
+
+  use_concat_mlp = concat_mlp;
+  cerr << "The concat-MLP variation is " << (concat_mlp ? "enabled" : "disabled") << endl;
 
   src_embedding_dimension = GetEmbeddingDimension(src_embedding_filename);
   tgt_embedding_dimension = GetEmbeddingDimension(tgt_embedding_filename);
@@ -187,8 +193,10 @@ void GauravsModel::InitializeParameters(Model* cnn_model) {
   p_R_rt = cnn_model->add_parameters({hidden_size, hidden_size});
   p_bias_rt = cnn_model->add_parameters({hidden_size});
 
-  p_R_mlp = cnn_model->add_parameters({hidden_size, 4 * hidden_size});
-  p_bias_mlp = cnn_model->add_parameters({hidden_size});
+  p_R_mlp_1 = cnn_model->add_parameters({hidden_size, 4 * hidden_size});
+  p_bias_mlp_1 = cnn_model->add_parameters({hidden_size});
+  p_R_mlp_2 = cnn_model->add_parameters({hidden_size, hidden_size});
+  p_bias_mlp_2 = cnn_model->add_parameters({hidden_size});
 
   if (use_reordering_model) {
     p_R_ce = cnn_model->add_parameters({hidden_size, hidden_size});
@@ -446,11 +454,18 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache
     exp_cache.tPhraseCache.insert(make_pair(c.tgtIdx, hiddens_rt.back()));
   }
 
-  Expression mlp_input = concatenate(currentConv);
-  Expression mlp_i_R = parameter(hg, p_R_mlp);
-  Expression mlp_i_bias = parameter(hg, p_bias_mlp);
-  Expression mlp_i_h = mlp_i_bias + mlp_i_R * mlp_input;
-  return rectify(mlp_i_h);
+  // Use the concat_MLP variation if specified
+  // Default behavior is to sum the vectors and return
+  if (use_concat_mlp) {
+    Expression mlp_input = concatenate(currentConv);
+    Expression mlp_i_R_1 = parameter(hg, p_R_mlp_1);
+    Expression mlp_i_bias_1 = parameter(hg, p_bias_mlp_1);
+    Expression mlp_i_R_2 = parameter(hg, p_R_mlp_2);
+    Expression mlp_i_bias_2 = parameter(hg, p_bias_mlp_2);
+    Expression mlp_i_h = rectify(mlp_i_bias_1 + mlp_i_R_1 * mlp_input);
+    return rectify(mlp_i_bias_2 + mlp_i_R_2 * mlp_i_h);
+  }
+  return sum(currentConv);
 }
 
 vector<Expression> GauravsModel::CoverageRecurrence(const vector<double>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder) {

@@ -165,6 +165,7 @@ int main(int argc, char** argv) {
   ("num_iterations,i", po::value<unsigned>()->default_value(UINT_MAX), "Number of epochs to train for")
   ("gaurav", po::value<vector<string> >()->multitoken(), "Use Gaurav's crazy-ass model. Specify source sentences, source embeddings, target embeddings.")
   ("combined", "Use the normal model in addition to Gaurav's. Specify --gaurav with the necessary files in addition to this flag.")
+  ("gaurav_mlp", "Use the concat-MLP variation instead of the default behavior which sums the context vectors from the model components.")
   ("ebleu", "Use ebleu loss function (default)")
   ("pro", "Use pro loss function (100 samples)")
   ("1vsrest", "Use 1-vs-rest loss function")
@@ -178,7 +179,7 @@ int main(int argc, char** argv) {
   po::store(po::command_line_parser(argc, argv).options(desc).positional(positional_options).run(), vm);
 
   if (vm.count("help")) {
-    cerr << desc; 
+    cerr << desc;
     ShowUsageAndExit(argv[0]);
     return 1;
   }
@@ -191,6 +192,11 @@ int main(int argc, char** argv) {
       cerr << "Gaurav's model requires these files: source_sentences, source_embeddings, target_embeddings [, dev_source]" << endl;
       return 1;
     }
+  }
+
+  bool use_concat_mlp = false;
+  if (vm.count("ebleu")) {
+    use_concat_mlp = true;
   }
 
   const int kEBLEU = 0;
@@ -231,11 +237,11 @@ int main(int argc, char** argv) {
     string target_embeddings_file = gauravs_shit[2];
     if (vm.count("combined") > 0) {
       train_data_view = new CombinedDataView(train_kbest_list, source_file);
-      train_feature_extractor = new CombinedFeatureExtractor(dynamic_cast<CombinedDataView*>(train_data_view), cnn_model, source_embeddings_file, target_embeddings_file);
+      train_feature_extractor = new CombinedFeatureExtractor(dynamic_cast<CombinedDataView*>(train_data_view), cnn_model, source_embeddings_file, target_embeddings_file, use_concat_mlp);
     }
     else {
       train_data_view = new GauravDataView(train_kbest_list, source_file);
-      train_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(train_data_view), cnn_model, source_embeddings_file, target_embeddings_file);
+      train_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(train_data_view), cnn_model, source_embeddings_file, target_embeddings_file, use_concat_mlp);
     }
   }
   else {

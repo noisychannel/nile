@@ -33,7 +33,7 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
 class GauravsModel {
 public:
   GauravsModel(Model& cnn_model, const string& src_embedding_filename, const string& tgt_embedding_filename,
-      bool reordering = false);
+      const bool concat_mlp, bool reordering = false);
   void InitializeParameters(Model* cnn_model);
   void InitializeEmbeddings(const string& filename, bool is_source);
   Expression GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt,
@@ -51,6 +51,7 @@ public:
 private:
   GauravsModel();
   bool use_reordering_model;
+  bool use_concat_mlp;
   void BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out);
   LookupParameters* src_embeddings;
   LookupParameters* tgt_embeddings;
@@ -78,8 +79,10 @@ private:
   Parameters* p_R_pe;
   Parameters* p_bias_pe;
 
-  Parameters* p_R_mlp;
-  Parameters* p_bias_mlp;
+  Parameters* p_R_mlp_1;
+  Parameters* p_bias_mlp_1;
+  Parameters* p_R_mlp_2;
+  Parameters* p_bias_mlp_2;
 
   LSTMBuilder builder_context_left;
   LSTMBuilder builder_context_right;
