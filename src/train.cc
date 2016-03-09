@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
   }
 
   bool use_concat_mlp = false;
-  if (vm.count("ebleu")) {
+  if (vm.count("gaurav_mlp")) {
     use_concat_mlp = true;
   }
 
@@ -231,10 +231,10 @@ int main(int argc, char** argv) {
 
   train_kbest_list = new KbestListInRam(kbest_filename);
   if (vm.count("gaurav") > 0) {
-    vector<string> gauravs_shit = vm["gaurav"].as<vector<string> >();
-    string source_file = gauravs_shit[0];
-    string source_embeddings_file = gauravs_shit[1];
-    string target_embeddings_file = gauravs_shit[2];
+    vector<string> gauravs_args = vm["gaurav"].as<vector<string> >();
+    string source_file = gauravs_args[0];
+    string source_embeddings_file = gauravs_args[1];
+    string target_embeddings_file = gauravs_args[2];
     if (vm.count("combined") > 0) {
       train_data_view = new CombinedDataView(train_kbest_list, source_file);
       train_feature_extractor = new CombinedFeatureExtractor(dynamic_cast<CombinedDataView*>(train_data_view), cnn_model, source_embeddings_file, target_embeddings_file, use_concat_mlp);
@@ -252,11 +252,11 @@ int main(int argc, char** argv) {
   if (dev_filename.length() > 0) {
     dev_kbest_list = new KbestListInRam(dev_filename);
     if (vm.count("gaurav") > 0) {
-      vector<string> gauravs_shit = vm["gaurav"].as<vector<string> >();
-      assert (gauravs_shit.size() >= 4);
-      string source_file = gauravs_shit[3];
-      string source_embeddings_file = gauravs_shit[1];
-      string target_embeddings_file = gauravs_shit[2];
+      vector<string> gauravs_args = vm["gaurav"].as<vector<string> >();
+      assert (gauravs_args.size() >= 4);
+      string source_file = gauravs_args[3];
+      string source_embeddings_file = gauravs_args[1];
+      string target_embeddings_file = gauravs_args[2];
       if (vm.count("combined") > 0) {
         dev_data_view = new CombinedDataView(dev_kbest_list, source_file);
         dev_feature_extractor = new CombinedFeatureExtractor(dynamic_cast<CombinedDataView*>(dev_data_view), dynamic_cast<CombinedFeatureExtractor*>(train_feature_extractor));
