@@ -36,7 +36,7 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
   const long long max_w = 50;              // max length of vocabulary entries
   f = fopen(filename.c_str(), "rb");
   if (f == NULL) {
-    printf("Input file not found\n");
+    printf("Embedding Input file not found\n");
     exit(1);
   }
   fscanf(f, "%lld", &words);
@@ -98,27 +98,23 @@ GauravsModel::GauravsModel() {
   p_R_mlp_2 = NULL;
   p_bias_mlp_2 = NULL;
 
-  use_reordering_model = false;
   use_concat_mlp = false;
 }
 
 GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filename,
     const string& tgt_embedding_filename, const bool concat_mlp,
-    bool reordering) {
+    const bool rand_emb) {
   // XXX: We should read these in from somewhere
   hidden_size = 71;
   num_layers = 1;
   src_vocab_size = 50000;
   tgt_vocab_size = 50000;
-
-  use_reordering_model = reordering;
-  cerr << "Reordering model is " << (reordering ? "enabled" : "disabled") << endl;
+  src_embedding_dimension = 50;
+  tgt_embedding_dimension = 50;
 
   use_concat_mlp = concat_mlp;
   cerr << "The concat-MLP variation is " << (concat_mlp ? "enabled" : "disabled") << endl;
-
-  src_embedding_dimension = GetEmbeddingDimension(src_embedding_filename);
-  tgt_embedding_dimension = GetEmbeddingDimension(tgt_embedding_filename);
+  cerr << "The use of random embeddings is " << (rand_emb ? "enabled" : "disabled") << endl;
 
   src_dict.Convert(kUnk);
   src_dict.Convert(kBos);
@@ -129,8 +125,12 @@ GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filenam
 
   InitializeParameters(&cnn_model);
 
-  InitializeEmbeddings(src_embedding_filename, true);
-  InitializeEmbeddings(tgt_embedding_filename, false);
+  if (! rand_emb) {
+    src_embedding_dimension = GetEmbeddingDimension(src_embedding_filename);
+    tgt_embedding_dimension = GetEmbeddingDimension(tgt_embedding_filename);
+    InitializeEmbeddings(src_embedding_filename, true);
+    InitializeEmbeddings(tgt_embedding_filename, false);
+  }
 
 }
 
@@ -177,13 +177,6 @@ void GauravsModel::InitializeParameters(Model* cnn_model) {
   builder_rule_source = GRUBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
   builder_rule_target = GRUBuilder(num_layers, tgt_embedding_dimension, hidden_size, cnn_model);
 
-  if (use_reordering_model) {
-    coverage_builder_context_left = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
-    coverage_builder_context_right = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
-    coverage_builder_current_emb = LSTMBuilder(num_layers, 1, hidden_size, cnn_model);
-    coverage_builder_prev_emb = LSTMBuilder(num_layers, 1, hidden_size, cnn_model);
-  }
-
   p_R_cl = cnn_model->add_parameters({hidden_size, hidden_size});
   p_bias_cl = cnn_model->add_parameters({hidden_size});
   p_R_cr = cnn_model->add_parameters({hidden_size, hidden_size});
@@ -197,13 +190,6 @@ void GauravsModel::InitializeParameters(Model* cnn_model) {
   p_bias_mlp_1 = cnn_model->add_parameters({hidden_size});
   p_R_mlp_2 = cnn_model->add_parameters({hidden_size, hidden_size});
   p_bias_mlp_2 = cnn_model->add_parameters({hidden_size});
-
-  if (use_reordering_model) {
-    p_R_ce = cnn_model->add_parameters({hidden_size, hidden_size});
-    p_bias_ce = cnn_model->add_parameters({hidden_size});
-    p_R_pe = cnn_model->add_parameters({hidden_size, hidden_size});
-    p_bias_pe = cnn_model->add_parameters({hidden_size});
-  }
 
   src_embeddings = cnn_model->add_lookup_parameters(src_vocab_size, {src_embedding_dimension});
   tgt_embeddings = cnn_model->add_lookup_parameters(tgt_vocab_size, {tgt_embedding_dimension});
@@ -302,27 +288,11 @@ Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, Com
   vector<Expression> coverageEmbeddings;
   for (unsigned i = 0; i < cSeq.size(); ++i) {
     const Context& currentContext = cSeq[i];
-    if (use_reordering_model) {
-      Expression currentCoverageEmbedding;
-      if (i != 0) {
-        const Context& previousContext = cSeq[i-1];
-        Expression currentCoverageEmbedding = BuildCoverageGraph(currentContext, previousContext, hg);
-      }
-      else {
-        Expression currentCoverageEmbedding = BuildCoverageGraph(currentContext, hg);
-      }
-      coverageEmbeddings.push_back(currentCoverageEmbedding);
-    }
-
     Expression currentEmbedding = BuildRNNGraph(currentContext, hg, exp_cache);
     ruleEmbeddings.push_back(currentEmbedding);
   }
   assert (ruleEmbeddings.size() > 0);
   assert (ruleEmbeddings.size() == cSeq.size());
-  if (use_reordering_model) {
-    assert (coverageEmbeddings.size() > 0);
-    assert (coverageEmbeddings.size() == cSeq.size());
-  }
   //TODO: Use coverage embeddings, somehow?
   return sum(ruleEmbeddings);
 }

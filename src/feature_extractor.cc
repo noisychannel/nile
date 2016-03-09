@@ -68,8 +68,8 @@ GauravsFeatureExtractor::GauravsFeatureExtractor() : data(NULL), gauravs_model(N
   Reset();
 }
 
-GauravsFeatureExtractor::GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file, const bool use_concat_mlp) : data(data), has_parent(false) {
-  gauravs_model = new GauravsModel(cnn_model, source_embedding_file, target_embedding_file, use_concat_mlp);
+GauravsFeatureExtractor::GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file, const bool use_concat_mlp, const bool use_rand_emb) : data(data), has_parent(false) {
+  gauravs_model = new GauravsModel(cnn_model, source_embedding_file, target_embedding_file, use_concat_mlp, use_rand_emb);
   Reset();
 }
 
@@ -147,9 +147,9 @@ unsigned GauravsFeatureExtractor::num_dimensions() const {
 CombinedFeatureExtractor::CombinedFeatureExtractor() : simple_extractor(NULL), gauravs_extractor(NULL) {
 }
 
-CombinedFeatureExtractor::CombinedFeatureExtractor(CombinedDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file, const bool use_concat_mlp) : data(data) {
+CombinedFeatureExtractor::CombinedFeatureExtractor(CombinedDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file, const bool use_concat_mlp, const bool use_rand_emb) : data(data) {
   simple_extractor = new SimpleKbestFeatureExtractor(data->simple);
-  gauravs_extractor = new GauravsFeatureExtractor(data->gaurav, cnn_model, source_embedding_file, target_embedding_file, use_concat_mlp);
+  gauravs_extractor = new GauravsFeatureExtractor(data->gaurav, cnn_model, source_embedding_file, target_embedding_file, use_concat_mlp, use_rand_emb);
   Reset();
 }
 

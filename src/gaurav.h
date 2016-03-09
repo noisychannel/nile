@@ -33,7 +33,7 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
 class GauravsModel {
 public:
   GauravsModel(Model& cnn_model, const string& src_embedding_filename, const string& tgt_embedding_filename,
-      const bool concat_mlp, bool reordering = false);
+      const bool concat_mlp, const bool use_rand_emb);
   void InitializeParameters(Model* cnn_model);
   void InitializeEmbeddings(const string& filename, bool is_source);
   Expression GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt,
@@ -50,7 +50,6 @@ public:
   const string kEos = "</s>";
 private:
   GauravsModel();
-  bool use_reordering_model;
   bool use_concat_mlp;
   void BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out);
   LookupParameters* src_embeddings;
