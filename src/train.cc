@@ -291,6 +291,8 @@ int main(int argc, char** argv) {
     
       unsigned best = train_kbest_list->BestHypIndex(sent_index);
       ComputationGraph cg;
+      Expression zero = input(cg, 0.0f);
+      bool no_hyps_found = false;
 
       vector<Expression> metric_scores;
       vector<Expression> model_scores;
@@ -319,8 +321,10 @@ int main(int argc, char** argv) {
         if (model_scores.size() < 2) {
           continue;
         }
+
         vector<Expression> losses;
-        for (unsigned i = 0, j = 0; i < 100; ++i, ++j) {
+        for (unsigned i = 0, j = 0; i < 100 && !no_hyps_found; ++i, ++j) {
+          assert (no_hyps_found == false);
           unsigned a = rand() % metric_scores.size();
           unsigned b = rand() % metric_scores.size();
           int comp = train_kbest_list->CompareHyps(sent_index, a, b);
@@ -334,29 +338,39 @@ int main(int argc, char** argv) {
             bad = b;
           }
           else {
-            i -= 1;
-            if (j > 100 * i && i > 100) {
-              assert (false && "Unable to find good hypothesis pairs!");
+            if (j > 100 * (i + 1)) {
+              //assert (false && "Unable to find good hypothesis pairs!");
+              //cerr << "WARNING: Unable to find good hypothesis pairs for sentence with id=" << sent_index << endl;
+              no_hyps_found = true;
+              break;
             }
+            i -= 1;
             continue;
           }
 
-          Expression loss = 1.0 - (model_scores[bad] - model_scores[good]);
+          Expression loss = max(zero, 1.0 - (model_scores[bad] - model_scores[good]));
           losses.push_back(loss);
         }
-        Expression loss = sum(losses);
+        if (losses.size() > 0) {
+          Expression loss = sum(losses);
+        }
+        else {
+          assert (no_hyps_found);
+        }
       }
       else {
         assert (false);
       }
 
-      loss += as_scalar(cg.forward());
-      if (iteration != 0) {
-        cg.backward();
-        trainer->update(1.0);
-      }
-      if (ctrlc_pressed) {
-        break;
+      if (!no_hyps_found) {
+        loss += as_scalar(cg.forward());
+        if (iteration != 0) {
+          cg.backward();
+          trainer->update(1.0);
+        }
+        if (ctrlc_pressed) {
+          break;
+        }
       }
     }
     if (ctrlc_pressed) {
