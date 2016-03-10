@@ -98,9 +98,6 @@ private:
   vector<Expression> Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, RNNBuilder& builder);
   vector<Expression> CoverageRecurrence(const vector<double>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder);
 
-  Expression BuildCoverageGraph(const Context& currentContext, ComputationGraph& hg);
-  Expression BuildCoverageGraph(const Context& currentContext, const Context& previousContext, ComputationGraph& hg);
-
   // For a given context (source rule, target rule, left context and
   // right context, this generates the symbolic graph for the
   // operations involving the four RNNs that embed each of these

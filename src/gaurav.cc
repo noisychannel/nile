@@ -123,11 +123,16 @@ GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filenam
   tgt_dict.Convert(kBos);
   tgt_dict.Convert(kEos);
 
-  InitializeParameters(&cnn_model);
-
   if (! rand_emb) {
     src_embedding_dimension = GetEmbeddingDimension(src_embedding_filename);
     tgt_embedding_dimension = GetEmbeddingDimension(tgt_embedding_filename);
+  }
+  cerr << "Source embedding dimension is " << src_embedding_dimension << endl;
+  cerr << "Target embedding dimension is " << tgt_embedding_dimension << endl;
+
+  InitializeParameters(&cnn_model);
+
+  if (! rand_emb) {
     InitializeEmbeddings(src_embedding_filename, true);
     InitializeEmbeddings(tgt_embedding_filename, false);
   }
@@ -297,62 +302,7 @@ Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, Com
   return sum(ruleEmbeddings);
 }
 
-Expression GauravsModel::BuildCoverageGraph(const Context& currentContext, ComputationGraph& hg) {
-  coverage_builder_context_left.new_graph(hg);
-  coverage_builder_context_right.new_graph(hg);
-  coverage_builder_current_emb.new_graph(hg);
-  coverage_builder_context_left.start_new_sequence();
-  coverage_builder_context_right.start_new_sequence();
-  coverage_builder_current_emb.start_new_sequence();
-  vector<Expression> hiddens_cl = Recurrence(currentContext.leftContext, hg,
-                              {src_embeddings, p_R_cl, p_bias_cl}, coverage_builder_context_left);
-  vector<Expression> hiddens_cr = Recurrence(currentContext.rightContext, hg,
-                              {src_embeddings, p_R_cr, p_bias_cr}, coverage_builder_context_right);
-  vector<Expression> hiddens_ce = CoverageRecurrence(currentContext.coverage, hg,
-                              {NULL, p_R_ce, p_bias_ce}, coverage_builder_current_emb);
-  assert (hiddens_cl.size() > 0);
-  assert (hiddens_cr.size() > 0);
-  assert (hiddens_ce.size() > 0);
-  vector<Expression> convVector;
-  convVector.push_back(hiddens_cl.back());
-  convVector.push_back(hiddens_cr.back());
-  convVector.push_back(hiddens_ce.back());
-  return sum(convVector);
-}
-
-Expression GauravsModel::BuildCoverageGraph(const Context& currentContext, const Context& previousContext,
-    ComputationGraph& hg) {
-  coverage_builder_context_left.new_graph(hg);
-  coverage_builder_context_right.new_graph(hg);
-  coverage_builder_current_emb.new_graph(hg);
-  coverage_builder_prev_emb.new_graph(hg);
-  coverage_builder_context_left.start_new_sequence();
-  coverage_builder_context_right.start_new_sequence();
-  coverage_builder_current_emb.start_new_sequence();
-  coverage_builder_prev_emb.start_new_sequence();
-  vector<Expression> hiddens_cl = Recurrence(currentContext.leftContext, hg,
-                              {src_embeddings, p_R_cl, p_bias_cl}, coverage_builder_context_left);
-  vector<Expression> hiddens_cr = Recurrence(currentContext.rightContext, hg,
-                              {src_embeddings, p_R_cr, p_bias_cr}, coverage_builder_context_right);
-  vector<Expression> hiddens_ce = CoverageRecurrence(currentContext.coverage, hg,
-                              {NULL, p_R_ce, p_bias_ce}, coverage_builder_current_emb);
-  vector<Expression> hiddens_pe = CoverageRecurrence(previousContext.coverage, hg,
-                              {NULL, p_R_pe, p_bias_pe}, coverage_builder_prev_emb);
-  assert (hiddens_cl.size() > 0);
-  assert (hiddens_cr.size() > 0);
-  assert (hiddens_ce.size() > 0);
-  assert (hiddens_pe.size() > 0);
-  vector<Expression> convVector;
-  convVector.push_back(hiddens_cl.back());
-  convVector.push_back(hiddens_cr.back());
-  convVector.push_back(hiddens_ce.back());
-  convVector.push_back(hiddens_pe.back());
-
-  return sum(convVector);
-}
-
 Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache& exp_cache) {
-
   vector<Expression> convVector;
   auto srcIt = exp_cache.srcExpCache.find(c.srcIdx);
   //First check to see if the source is cached
@@ -433,6 +383,7 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache
     Expression mlp_i_R_2 = parameter(hg, p_R_mlp_2);
     Expression mlp_i_bias_2 = parameter(hg, p_bias_mlp_2);
     Expression mlp_i_h = rectify(mlp_i_bias_1 + mlp_i_R_1 * mlp_input);
+    // TODO(gkumar): Is a rectify needed on the final layer
     return rectify(mlp_i_bias_2 + mlp_i_R_2 * mlp_i_h);
   }
   return sum(currentConv);
