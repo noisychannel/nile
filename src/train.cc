@@ -187,16 +187,6 @@ int main(int argc, char** argv) {
 
   po::notify(vm);
 
-  if (vm.count("gaurav")) {
-    vector<string> gaurav_files = vm["gaurav"].as<vector<string> >();
-    cerr << gaurav_files.size() << endl;
-    if (gaurav_files.size() == 0) {
-      cerr << "Gaurav's model requires these files: source_sentences, source_embeddings, target_embeddings [, dev_source]" << endl;
-      cerr << "or with the --rand_emb switch: source_sentences [, dev_source]";
-      return 1;
-    }
-  }
-
   bool use_concat_mlp = false;
   if (vm.count("gaurav_mlp")) {
     use_concat_mlp = true;
@@ -271,7 +261,7 @@ int main(int argc, char** argv) {
         source_file = gauravs_args[3];
       }
       else {
-        assert (gauravs_args.size() >= 2);
+        assert (gauravs_args.size() == 2);
         source_file = gauravs_args[1];
       }
       if (vm.count("combined") > 0) {
