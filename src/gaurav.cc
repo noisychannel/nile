@@ -1,6 +1,3 @@
-//TODO:
-//2. Use V.c from the output of the RNNs instead of c
-
 #include <fstream>
 #include <iostream>
 #include <climits>
@@ -88,10 +85,7 @@ GauravsModel::GauravsModel() {
   p_R_rt = NULL;
   p_bias_rt = NULL;
 
-  p_R_pe = NULL;
-  p_bias_pe = NULL;
-  p_R_ce = NULL;
-  p_bias_ce = NULL;
+  p_V = NULL;
 
   p_R_mlp_1 = NULL;
   p_bias_mlp_1 = NULL;
@@ -105,7 +99,7 @@ GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filenam
     const string& tgt_embedding_filename, const bool concat_mlp,
     const bool rand_emb) {
   // XXX: We should read these in from somewhere
-  hidden_size = 71;
+  hidden_size = 100;
   num_layers = 1;
   src_vocab_size = 50000;
   tgt_vocab_size = 50000;
@@ -195,6 +189,8 @@ void GauravsModel::InitializeParameters(Model* cnn_model) {
   p_bias_mlp_1 = cnn_model->add_parameters({hidden_size});
   p_R_mlp_2 = cnn_model->add_parameters({hidden_size, hidden_size});
   p_bias_mlp_2 = cnn_model->add_parameters({hidden_size});
+
+  p_V = cnn_model->add_parameters({hidden_size, hidden_size});
 
   src_embeddings = cnn_model->add_lookup_parameters(src_vocab_size, {src_embedding_dimension});
   tgt_embeddings = cnn_model->add_lookup_parameters(tgt_vocab_size, {tgt_embedding_dimension});
@@ -374,6 +370,8 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache
     exp_cache.tPhraseCache.insert(make_pair(c.tgtIdx, hiddens_rt.back()));
   }
 
+  Expression V = parameter(hg, p_V);
+
   // Use the concat_MLP variation if specified
   // Default behavior is to sum the vectors and return
   if (use_concat_mlp) {
@@ -383,29 +381,9 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache
     Expression mlp_i_R_2 = parameter(hg, p_R_mlp_2);
     Expression mlp_i_bias_2 = parameter(hg, p_bias_mlp_2);
     Expression mlp_i_h = rectify(mlp_i_bias_1 + mlp_i_R_1 * mlp_input);
-    // TODO(gkumar): Is a rectify needed on the final layer
-    return rectify(mlp_i_bias_2 + mlp_i_R_2 * mlp_i_h);
+    return V * rectify(mlp_i_bias_2 + mlp_i_R_2 * mlp_i_h);
   }
-  return sum(currentConv);
-}
-
-vector<Expression> GauravsModel::CoverageRecurrence(const vector<double>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder) {
-  assert (sequence.size() > 0);
-  const unsigned sequenceLen = sequence.size();
-  vector<Expression> hiddenStates;
-  Expression i_R = parameter(hg, p.p_R);
-  Expression i_bias = parameter(hg, p.p_bias);
-  for (unsigned t = 0; t < sequenceLen; ++t) {
-    // Get the embedding for the current input token
-    Expression i_x_t = input(hg, sequence[t]);
-    // y_t = RNN(x_t)
-    Expression i_y_t = builder.add_input(i_x_t);
-    // r_T = bias + R * y_t
-    Expression i_r_t = i_bias + i_R * i_y_t;
-    Expression i_h_t = tanh(i_r_t);
-    hiddenStates.push_back(i_h_t);
-  }
-  return hiddenStates;
+  return V * sum(currentConv);
 }
 
 vector<Expression> GauravsModel::Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, RNNBuilder& builder) {

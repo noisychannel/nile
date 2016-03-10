@@ -72,16 +72,13 @@ private:
   Parameters* p_R_rt;
   Parameters* p_bias_rt;
 
-  // Parameters for re-ordering model
-  Parameters* p_R_ce;
-  Parameters* p_bias_ce;
-  Parameters* p_R_pe;
-  Parameters* p_bias_pe;
-
   Parameters* p_R_mlp_1;
   Parameters* p_bias_mlp_1;
   Parameters* p_R_mlp_2;
   Parameters* p_bias_mlp_2;
+
+  // Final weight vector for context embeddings
+  Parameters* p_V;
 
   LSTMBuilder builder_context_left;
   LSTMBuilder builder_context_right;
@@ -96,7 +93,6 @@ private:
   // This is a general recurrence operation for an RNN over a sequence
   // Reads in a sequence, creates and returns hidden states.
   vector<Expression> Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, RNNBuilder& builder);
-  vector<Expression> CoverageRecurrence(const vector<double>& sequence, ComputationGraph& hg, Params p, LSTMBuilder& builder);
 
   // For a given context (source rule, target rule, left context and
   // right context, this generates the symbolic graph for the
