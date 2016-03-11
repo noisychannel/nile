@@ -14,12 +14,6 @@ vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& 
 
   for (unsigned i = 0; i < links.size(); ++i) {
     vector<double> cv;
-    if (i == 0) {
-      cv.resize(src.size(), 0.0);
-    }
-    else {
-      cv = contextSeq.back().coverage;
-    }
     PhraseAlignmentLink currentSrcSpan = links[i];
     vector<unsigned> leftContext;
     vector<unsigned> rightContext;
@@ -35,8 +29,6 @@ vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& 
       else if (src_id >= currentSrcSpan.src_start && src_id < currentSrcSpan.src_end) {
         // Generating source phrase
         sourcePhrase.push_back(src[src_id]);
-        // Update coverage vector
-        cv[src_id] = 1.0;
       }
       else if (src_id >= currentSrcSpan.src_end){
         // Generating right context
@@ -64,20 +56,6 @@ vector<Context> getContext(const vector<unsigned>& src, const vector<unsigned>& 
     contextSeq.push_back(curContext);
     assert (curContext.leftContext.size() == contextSeq.back().leftContext.size());
   }
-
-  //Remove the first and last element from the coverage vectors
-  //These correspond to <s> and </s>
-  for (auto context_it = contextSeq.begin(); context_it != contextSeq.end(); ++context_it) {
-    vector<double> coverageVector = (*context_it).coverage;
-    coverageVector.erase(coverageVector.begin());
-    coverageVector.pop_back();
-    //for (auto cv_it = coverageVector.begin(); cv_it != coverageVector.end(); ++cv_it) {
-      //cerr << *cv_it;
-    //}
-    //cerr << endl;
-  }
-
-  //abort();
 
   return contextSeq;
 }

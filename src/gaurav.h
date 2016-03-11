@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include "cnn/dict.h"
 #include "cnn/expr.h"
-#include "cnn/lstm.h"
+#include "cnn/fast-lstm.h"
 #include "cnn/gru.h"
 #include "context.h"
 #include "expr_cache.h"
@@ -80,15 +80,10 @@ private:
   // Final weight vector for context embeddings
   Parameters* p_V;
 
-  LSTMBuilder builder_context_left;
-  LSTMBuilder builder_context_right;
+  FastLSTMBuilder builder_context_left;
+  FastLSTMBuilder builder_context_right;
   GRUBuilder builder_rule_source;
   GRUBuilder builder_rule_target;
-
-  LSTMBuilder coverage_builder_context_left;
-  LSTMBuilder coverage_builder_context_right;
-  LSTMBuilder coverage_builder_current_emb;
-  LSTMBuilder coverage_builder_prev_emb;
 
   // This is a general recurrence operation for an RNN over a sequence
   // Reads in a sequence, creates and returns hidden states.

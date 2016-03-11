@@ -171,8 +171,8 @@ void GauravsModel::InitializeEmbeddings(const string& filename, bool is_source) 
 }
 
 void GauravsModel::InitializeParameters(Model* cnn_model) {
-  builder_context_left = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
-  builder_context_right = LSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
+  builder_context_left = FastLSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
+  builder_context_right = FastLSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
   builder_rule_source = GRUBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
   builder_rule_target = GRUBuilder(num_layers, tgt_embedding_dimension, hidden_size, cnn_model);
 
@@ -286,7 +286,6 @@ Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, Com
   assert (cSeq.size() > 0);
   //TODO; Is this count right ?
   vector<Expression> ruleEmbeddings;
-  vector<Expression> coverageEmbeddings;
   for (unsigned i = 0; i < cSeq.size(); ++i) {
     const Context& currentContext = cSeq[i];
     Expression currentEmbedding = BuildRNNGraph(currentContext, hg, exp_cache);
@@ -294,7 +293,6 @@ Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, Com
   }
   assert (ruleEmbeddings.size() > 0);
   assert (ruleEmbeddings.size() == cSeq.size());
-  //TODO: Use coverage embeddings, somehow?
   return sum(ruleEmbeddings);
 }
 
