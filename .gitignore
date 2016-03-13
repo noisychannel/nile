@@ -1,7 +1,10 @@
 bin
 data
 obj
-log
+log*
 exp
 .cnn
 .eigen
+exp*
+jsalt
+zh-data
