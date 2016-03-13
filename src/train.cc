@@ -140,6 +140,7 @@ void Serialize(const RerankerModel* reranker_model, const KbestListInRamDataView
 
 int main(int argc, char** argv) {
   signal (SIGINT, ctrlc_handler);
+  cnn::Initialize(argc, argv);
 
   po::options_description desc("description");
   desc.add_options()
@@ -161,6 +162,7 @@ int main(int argc, char** argv) {
   ("eta_decay", po::value<double>()->default_value(0.05), "Learning rate decay rate (SGD only)")
   ("no_clipping", "Disable clipping of gradients")
   ("hidden_size,h", po::value<unsigned>()->default_value(0), "Hidden layer dimensionality. 0 = linear model")
+  ("cnn-mem", po::value<unsigned>()->default_value(512), "The default memory that CNN should use")
   ("max_features", po::value<unsigned>()->default_value(UINT_MAX), "Maximum number of input features. Later features will be discarded.")
   ("num_iterations,i", po::value<unsigned>()->default_value(UINT_MAX), "Number of epochs to train for")
   ("gaurav", po::value<vector<string> >()->multitoken(), "Use Gaurav's crazy-ass model. Specify source sentences, source embeddings, target embeddings.")
@@ -218,7 +220,6 @@ int main(int argc, char** argv) {
 
   cerr << "Running on " << Eigen::nbThreads() << " threads." << endl;
 
-  cnn::Initialize(argc, argv);
   KbestListInRam* train_kbest_list = NULL;
   KbestListInRam* dev_kbest_list = NULL;
   KbestListInRamDataView* train_data_view = NULL;

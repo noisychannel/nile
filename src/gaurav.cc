@@ -379,9 +379,9 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache
     Expression mlp_i_R_2 = parameter(hg, p_R_mlp_2);
     Expression mlp_i_bias_2 = parameter(hg, p_bias_mlp_2);
     Expression mlp_i_h = rectify(mlp_i_bias_1 + mlp_i_R_1 * mlp_input);
-    return V * rectify(mlp_i_bias_2 + mlp_i_R_2 * mlp_i_h);
+    return tanh(V * rectify(mlp_i_bias_2 + mlp_i_R_2 * mlp_i_h));
   }
-  return V * sum(currentConv);
+  return tanh(V * sum(currentConv));
 }
 
 vector<Expression> GauravsModel::Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, RNNBuilder& builder) {
