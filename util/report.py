@@ -16,7 +16,7 @@ def analysis(all_res, total_iterations):
                 best_run = sorted(range(len(exp_res)), key=lambda i: exp_res[i][2], reverse=True)[0]
                 dev_res = [x[2] for x in exp_res]
                 it_string = str(total_iterations[exp_id][1]) + "-" + str(total_iterations[exp_id][0])
-                mdata.append([exp_id, best_run, exp_res[best_run][0], it_string, exp_res[best_run][1], exp_res[best_run][2], '-', exp_res[best_run][3], round(np.mean(dev_res), 4), round(np.std(dev_res), 4)])
+                mdata.append([exp_id, best_run + 1, exp_res[best_run][0], it_string, exp_res[best_run][1], exp_res[best_run][2], '-', exp_res[best_run][3], round(np.mean(dev_res), 4), round(np.std(dev_res), 4)])
             else:
                 mdata.append(['-' for _ in range(9)])
     print tabulate(mdata, headers=['Exp ID', 'Best Run', 'Best iter', 'Iterations completed', 'Best tune', 'Best dev', 'Best test', 'Gain (dev)', 'Mean (dev)', 'SD (dev)'])
