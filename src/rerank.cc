@@ -48,11 +48,13 @@ void ShowUsageAndExit(string program_name) {
 }
 
 int main(int argc, char** argv) {
+  cnn::Initialize(argc, argv);
   po::options_description desc("description");
   desc.add_options()
   ("model_filename", po::value<string>()->required(), "Reranker model")
   ("kbest_filename", po::value<string>()->required(), "Input k-best hypothesis file")
   ("source_filename", po::value<string>()->default_value(""), "(Optional) List of source sentences corresponding to the input k-best list. Only required if using Gaurav's Model")
+  ("cnn-mem", po::value<unsigned>()->default_value(512), "the default memory that cnn should use")
   ("help", "Display this help message");
 
   po::positional_options_description positional_options;
@@ -77,7 +79,6 @@ int main(int argc, char** argv) {
   const string source_filename = vm["source_filename"].as<string>();
 
   cerr << "Building model...\n"; 
-  cnn::Initialize(argc, argv);
 
   RerankerModel* reranker_model = NULL;
   KbestListInRam* kbest_list = new KbestListInRam(kbest_filename);
