@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
   desc.add_options()
   ("model_filename", po::value<string>()->required(), "Reranker model")
   ("kbest_filename", po::value<string>()->required(), "Input k-best hypothesis file")
-  ("source_filename", po::value<string>()->default_value(""), "(Optional) List of source sentences corresponding to the input k-best list. Only required if using Gaurav's Model")
+  ("source_filename", po::value<string>()->default_value(""), "(Optional) List of source sentences corresponding to the input k-best list. Only required if using the context-sensitive model")
   ("cnn-mem", po::value<unsigned>()->default_value(512), "the default memory that cnn should use")
   ("help", "Display this help message");
 
