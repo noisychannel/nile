@@ -12,7 +12,7 @@
 #include "kbestlist.h"
 #include "utils.h"
 #include "expr_cache.h"
-#include "gaurav.h"
+#include "context_sensitive_model.h"
 #include "dataview.h"
 
 class KbestFeatureExtractor {
@@ -58,11 +58,11 @@ private:
 };
 BOOST_CLASS_EXPORT_KEY(SimpleKbestFeatureExtractor)
 
-class GauravsFeatureExtractor : public KbestFeatureExtractor {
+class ContextSensitiveFeatureExtractor : public KbestFeatureExtractor {
 public: 
-  GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file, const bool use_concat_mlp, const bool use_rand_emb);
-  GauravsFeatureExtractor(GauravDataView* data, GauravsFeatureExtractor* parent);
-  ~GauravsFeatureExtractor();
+  ContextSensitiveFeatureExtractor(ContextSensitiveDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file, const bool use_concat_mlp, const bool use_rand_emb);
+  ContextSensitiveFeatureExtractor(ContextSensitiveDataView* data, ContextSensitiveFeatureExtractor* parent);
+  ~ContextSensitiveFeatureExtractor();
   bool MoveToNextSentence();
   bool MoveToNextHypothesis();
   Expression GetFeatures(ComputationGraph& cg) const;
@@ -72,9 +72,9 @@ public:
   void InitializeParameters(Model* cnn_model);
   void SetDataPointer(KbestListInRamDataView* data);
 private:
-  GauravsFeatureExtractor();
-  GauravDataView* data;
-  GauravsModel* gauravs_model;
+  ContextSensitiveFeatureExtractor();
+  ContextSensitiveDataView* data;
+  ContextSensitiveModel* context_sensitive_model;
   bool has_parent;
   unsigned sent_index;
   unsigned hyp_index;
@@ -83,11 +83,11 @@ private:
   friend class boost::serialization::access;
   template<class Archive>
   void serialize(Archive& ar, const unsigned int) {
-    boost::serialization::void_cast_register<GauravsFeatureExtractor, KbestFeatureExtractor>();
-    ar & gauravs_model;
+    boost::serialization::void_cast_register<ContextSensitiveFeatureExtractor, KbestFeatureExtractor>();
+    ar & context_sensitive_model;
   } 
 };
-BOOST_CLASS_EXPORT_KEY(GauravsFeatureExtractor)
+BOOST_CLASS_EXPORT_KEY(ContextSensitiveFeatureExtractor)
 
 class CombinedFeatureExtractor : public KbestFeatureExtractor {
 public:
@@ -106,14 +106,14 @@ private:
   CombinedFeatureExtractor();
   CombinedDataView* data;
   SimpleKbestFeatureExtractor* simple_extractor;
-  GauravsFeatureExtractor* gauravs_extractor;
+  ContextSensitiveFeatureExtractor* context_sensitive_extractor;
 
   friend class boost::serialization::access;
   template<class Archive>
   void serialize(Archive& ar, const unsigned int) {
     boost::serialization::void_cast_register<CombinedFeatureExtractor, KbestFeatureExtractor>();
     ar & simple_extractor;
-    ar & gauravs_extractor;
+    ar & context_sensitive_extractor;
   }
 };
 BOOST_CLASS_EXPORT_KEY(CombinedFeatureExtractor)

@@ -1,7 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <climits>
-#include "gaurav.h"
+#include "context_sensitive_model.h"
 #include "context.h"
 #include "utils.h"
 
@@ -53,7 +53,6 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
     for (a = 0; a < size; a++) M[a + b * size] /= len;
   }
 
-  // Changes made by Gaurav Kumar (gkumar@cs.jhu.edu)
   // Returns a dictionary of word embeddings
   unordered_map<unsigned, vector<float>> embedDict;
   for (int i = 0; i < words; i++) {
@@ -71,7 +70,7 @@ unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered
   return embedDict;
 }
 
-GauravsModel::GauravsModel() {
+ContextSensitiveModel::ContextSensitiveModel() {
   src_embeddings = NULL;
   tgt_embeddings = NULL;
   src_vocab_size = 0;
@@ -95,7 +94,7 @@ GauravsModel::GauravsModel() {
   use_concat_mlp = false;
 }
 
-GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filename,
+ContextSensitiveModel::ContextSensitiveModel(Model& cnn_model, const string& src_embedding_filename,
     const string& tgt_embedding_filename, const bool concat_mlp,
     const bool rand_emb) {
   // XXX: We should read these in from somewhere
@@ -133,7 +132,7 @@ GauravsModel::GauravsModel(Model& cnn_model, const string& src_embedding_filenam
 
 }
 
-void GauravsModel::InitializeEmbeddings(const string& filename, bool is_source) {
+void ContextSensitiveModel::InitializeEmbeddings(const string& filename, bool is_source) {
   Dict* cnn_dict = (is_source ? &src_dict : &tgt_dict);
   LookupParameters* embeddings = (is_source ? src_embeddings : tgt_embeddings);
   unsigned max_vocab_size = (is_source ? src_vocab_size : tgt_vocab_size);
@@ -170,7 +169,7 @@ void GauravsModel::InitializeEmbeddings(const string& filename, bool is_source) 
   }
 }
 
-void GauravsModel::InitializeParameters(Model* cnn_model) {
+void ContextSensitiveModel::InitializeParameters(Model* cnn_model) {
   builder_context_left = FastLSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
   builder_context_right = FastLSTMBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
   builder_rule_source = GRUBuilder(num_layers, src_embedding_dimension, hidden_size, cnn_model);
@@ -196,7 +195,7 @@ void GauravsModel::InitializeParameters(Model* cnn_model) {
   tgt_embeddings = cnn_model->add_lookup_parameters(tgt_vocab_size, {tgt_embedding_dimension});
 }
 
-void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out) {
+void ContextSensitiveModel::BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out) {
   unsigned vocab_size = in.size();
   vector<string> vocab_vec(vocab_size);
   for (auto& it : in) {
@@ -211,7 +210,7 @@ void GauravsModel::BuildDictionary(const unordered_map<string, unsigned>& in, Di
   //out.Freeze();
 }
 
-Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt,
+Expression ContextSensitiveModel::GetRuleContext(const vector<unsigned>& src, const vector<unsigned>& tgt,
     const vector<PhraseAlignmentLink>& alignment, ComputationGraph& cg,
       ExpCache& exp_cache) {
   assert(src.size() > 0);
@@ -233,25 +232,25 @@ Expression GauravsModel::GetRuleContext(const vector<unsigned>& src, const vecto
 
 }
 
-vector<unsigned> GauravsModel::ConvertSourceSentence(const string& sentence) {
+vector<unsigned> ContextSensitiveModel::ConvertSourceSentence(const string& sentence) {
   vector<string> words = tokenize(sentence, " ");
   return ConvertSourceSentence(words);
 }
 
-vector<unsigned> GauravsModel::ConvertSourceSentence(const vector<string>& words) {
+vector<unsigned> ContextSensitiveModel::ConvertSourceSentence(const vector<string>& words) {
   return ConvertSentence(words, src_dict);
 }
 
-vector<unsigned> GauravsModel::ConvertTargetSentence(const string& sentence) {
+vector<unsigned> ContextSensitiveModel::ConvertTargetSentence(const string& sentence) {
   vector<string> words = tokenize(sentence, " ");
   return ConvertTargetSentence(words);
 }
 
-vector<unsigned> GauravsModel::ConvertTargetSentence(const vector<string>& words) {
+vector<unsigned> ContextSensitiveModel::ConvertTargetSentence(const vector<string>& words) {
   return ConvertSentence(words, tgt_dict);
 }
 
-vector<unsigned> GauravsModel::ConvertSentence(const vector<string>& words, Dict& dict) {
+vector<unsigned> ContextSensitiveModel::ConvertSentence(const vector<string>& words, Dict& dict) {
   vector<unsigned> r(words.size());
   for (unsigned i = 0; i < words.size(); ++i) {
     if (dict.Contains(words[i])) {
@@ -265,11 +264,11 @@ vector<unsigned> GauravsModel::ConvertSentence(const vector<string>& words, Dict
   return r;
 }
 
-unsigned GauravsModel::OutputDimension() const {
+unsigned ContextSensitiveModel::OutputDimension() const {
   return hidden_size;
 }
 
-Expression GauravsModel::getRNNRuleContext(
+Expression ContextSensitiveModel::getRNNRuleContext(
     const vector<unsigned>& src, const vector<unsigned>& tgt,
     const vector<PhraseAlignmentLink>& links, ComputationGraph& hg,
     ExpCache& exp_cache) {
@@ -281,7 +280,7 @@ Expression GauravsModel::getRNNRuleContext(
   return BuildRuleSequenceModel(contexts, hg, exp_cache);
 }
 
-Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg,
+Expression ContextSensitiveModel::BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg,
     ExpCache& exp_cache) {
   assert (cSeq.size() > 0);
   //TODO; Is this count right ?
@@ -296,7 +295,7 @@ Expression GauravsModel::BuildRuleSequenceModel(const vector<Context>& cSeq, Com
   return sum(ruleEmbeddings);
 }
 
-Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache& exp_cache) {
+Expression ContextSensitiveModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache& exp_cache) {
   vector<Expression> convVector;
   auto srcIt = exp_cache.srcExpCache.find(c.srcIdx);
   //First check to see if the source is cached
@@ -372,6 +371,7 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache
 
   // Use the concat_MLP variation if specified
   // Default behavior is to sum the vectors and return
+  //use_concat_mlp = true;
   if (use_concat_mlp) {
     Expression mlp_input = concatenate(currentConv);
     Expression mlp_i_R_1 = parameter(hg, p_R_mlp_1);
@@ -384,7 +384,7 @@ Expression GauravsModel::BuildRNNGraph(Context c, ComputationGraph& hg, ExpCache
   return tanh(V * sum(currentConv));
 }
 
-vector<Expression> GauravsModel::Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, RNNBuilder& builder) {
+vector<Expression> ContextSensitiveModel::Recurrence(const vector<unsigned>& sequence, ComputationGraph& hg, Params p, RNNBuilder& builder) {
   assert (sequence.size() > 0);
   const unsigned sequenceLen = sequence.size();
   vector<Expression> hiddenStates;

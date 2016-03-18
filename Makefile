@@ -28,10 +28,10 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cc
 	$(CC) $(CFLAGS) $(INCS) -c $< -o $@
 	$(CC) -MM -MP -MT "$@" $(CFLAGS) $(INCS) $< > $(OBJDIR)/$*.d
 	
-$(BINDIR)/train: $(addprefix $(OBJDIR)/, train.o kbestlist.o utils.o kbest_hypothesis.o reranker.o feature_extractor.o dataview.o gaurav.o context.o)
+$(BINDIR)/train: $(addprefix $(OBJDIR)/, train.o kbestlist.o utils.o kbest_hypothesis.o reranker.o feature_extractor.o dataview.o context_sensitive_model.o context.o)
 	g++ $(LIBS) $^ -o $@ $(FINAL)
 
-$(BINDIR)/rerank: $(addprefix $(OBJDIR)/, rerank.o kbestlist.o utils.o kbest_hypothesis.o reranker.o feature_extractor.o dataview.o gaurav.o context.o)
+$(BINDIR)/rerank: $(addprefix $(OBJDIR)/, rerank.o kbestlist.o utils.o kbest_hypothesis.o reranker.o feature_extractor.o dataview.o context_sensitive_model.o context.o)
 	g++ $(LIBS) $^ -o $@ $(FINAL)
 
 $(BINDIR)/sandbox: $(addprefix $(OBJDIR)/, sandbox.o kbest_hypothesis.o utils.o)

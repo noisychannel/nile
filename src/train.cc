@@ -165,9 +165,9 @@ int main(int argc, char** argv) {
   ("cnn-mem", po::value<unsigned>()->default_value(512), "The default memory that CNN should use")
   ("max_features", po::value<unsigned>()->default_value(UINT_MAX), "Maximum number of input features. Later features will be discarded.")
   ("num_iterations,i", po::value<unsigned>()->default_value(UINT_MAX), "Number of epochs to train for")
-  ("gaurav", po::value<vector<string> >()->multitoken(), "Use Gaurav's crazy-ass model. Specify source sentences, source embeddings, target embeddings.")
-  ("combined", "Use the normal model in addition to Gaurav's. Specify --gaurav with the necessary files in addition to this flag.")
-  ("gaurav_mlp", "Use the concat-MLP variation instead of the default behavior which sums the context vectors from the model components.")
+  ("context", po::value<vector<string> >()->multitoken(), "Use the context-sensitive model. Specify source sentences, source embeddings, target embeddings.")
+  ("combined", "Use the normal model in addition to the context-sensitive model. Specify --context with the necessary files in addition to this flag.")
+  ("concat_mlp", "Use the concat-MLP variation instead of the default behavior which sums the context vectors from the model components.")
   ("rand_emb", "Use random word embeddings instead of the pre-trained ones.")
   ("ebleu", "Use ebleu loss function (default)")
   ("pro", "Use pro loss function (100 samples)")
@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
   po::notify(vm);
 
   bool use_concat_mlp = false;
-  if (vm.count("gaurav_mlp")) {
+  if (vm.count("concat_mlp")) {
     use_concat_mlp = true;
   }
   bool use_rand_emb = false;
@@ -228,23 +228,23 @@ int main(int argc, char** argv) {
   KbestFeatureExtractor* dev_feature_extractor = NULL;
 
   train_kbest_list = new KbestListInRam(kbest_filename);
-  if (vm.count("gaurav") > 0) {
-    vector<string> gauravs_args = vm["gaurav"].as<vector<string> >();
-    string source_file = gauravs_args[0];
+  if (vm.count("context") > 0) {
+    vector<string> context_args = vm["context"].as<vector<string> >();
+    string source_file = context_args[0];
     string source_embeddings_file = "";
     string target_embeddings_file = "";
     if (! use_rand_emb) {
-      assert (gauravs_args.size() >= 3);
-      source_embeddings_file = gauravs_args[1];
-      target_embeddings_file = gauravs_args[2];
+      assert (context_args.size() >= 3);
+      source_embeddings_file = context_args[1];
+      target_embeddings_file = context_args[2];
     }
     if (vm.count("combined") > 0) {
       train_data_view = new CombinedDataView(train_kbest_list, source_file);
       train_feature_extractor = new CombinedFeatureExtractor(dynamic_cast<CombinedDataView*>(train_data_view), cnn_model, source_embeddings_file, target_embeddings_file, use_concat_mlp, use_rand_emb);
     }
     else {
-      train_data_view = new GauravDataView(train_kbest_list, source_file);
-      train_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(train_data_view), cnn_model, source_embeddings_file, target_embeddings_file, use_concat_mlp, use_rand_emb);
+      train_data_view = new ContextSensitiveDataView(train_kbest_list, source_file);
+      train_feature_extractor = new ContextSensitiveFeatureExtractor(dynamic_cast<ContextSensitiveDataView*>(train_data_view), cnn_model, source_embeddings_file, target_embeddings_file, use_concat_mlp, use_rand_emb);
     }
   }
   else {
@@ -254,24 +254,24 @@ int main(int argc, char** argv) {
 
   if (dev_filename.length() > 0) {
     dev_kbest_list = new KbestListInRam(dev_filename);
-    if (vm.count("gaurav") > 0) {
-      vector<string> gauravs_args = vm["gaurav"].as<vector<string> >();
+    if (vm.count("context") > 0) {
+      vector<string> context_args = vm["context"].as<vector<string> >();
       string source_file = "";
       if (! use_rand_emb) {
-        assert (gauravs_args.size() >= 4);
-        source_file = gauravs_args[3];
+        assert (context_args.size() >= 4);
+        source_file = context_args[3];
       }
       else {
-        assert (gauravs_args.size() == 2);
-        source_file = gauravs_args[1];
+        assert (context_args.size() == 2);
+        source_file = context_args[1];
       }
       if (vm.count("combined") > 0) {
         dev_data_view = new CombinedDataView(dev_kbest_list, source_file);
         dev_feature_extractor = new CombinedFeatureExtractor(dynamic_cast<CombinedDataView*>(dev_data_view), dynamic_cast<CombinedFeatureExtractor*>(train_feature_extractor));
       }
       else {
-        dev_data_view = new GauravDataView(dev_kbest_list, source_file);
-        dev_feature_extractor = new GauravsFeatureExtractor(dynamic_cast<GauravDataView*>(dev_data_view), dynamic_cast<GauravsFeatureExtractor*>(train_feature_extractor));
+        dev_data_view = new ContextSensitiveDataView(dev_kbest_list, source_file);
+        dev_feature_extractor = new ContextSensitiveFeatureExtractor(dynamic_cast<ContextSensitiveDataView*>(dev_data_view), dynamic_cast<ContextSensitiveFeatureExtractor*>(train_feature_extractor));
       }
     }
     else {

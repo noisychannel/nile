@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
   desc.add_options()
   ("model_filename", po::value<string>()->required(), "Reranker model")
   ("kbest_filename", po::value<string>()->required(), "Input k-best hypothesis file")
-  ("source_filename", po::value<string>()->default_value(""), "(Optional) List of source sentences corresponding to the input k-best list. Only required if using Gaurav's Model")
+  ("source_filename", po::value<string>()->default_value(""), "(Optional) List of source sentences corresponding to the input k-best list. Only required if using the context-sensitive model")
   ("help", "Display this help message");
 
   po::positional_options_description positional_options;

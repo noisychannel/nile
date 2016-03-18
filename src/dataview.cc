@@ -1,7 +1,7 @@
 #include <climits>
 #include "dataview.h"
 BOOST_CLASS_EXPORT_IMPLEMENT(SimpleDataView)
-BOOST_CLASS_EXPORT_IMPLEMENT(GauravDataView)
+BOOST_CLASS_EXPORT_IMPLEMENT(ContextSensitiveDataView)
 BOOST_CLASS_EXPORT_IMPLEMENT(CombinedDataView)
 
 KbestListInRamDataView::KbestListInRamDataView() {}
@@ -126,15 +126,15 @@ unsigned SimpleDataView::num_features() const {
   return num_features_;
 }
 
-GauravDataView::GauravDataView() {}
+ContextSensitiveDataView::ContextSensitiveDataView() {}
 
-GauravDataView::GauravDataView(KbestListInRam* kbest_list, const string& source_filename) {
+ContextSensitiveDataView::ContextSensitiveDataView(KbestListInRam* kbest_list, const string& source_filename) {
   Initialize(kbest_list, source_filename);
 }
 
-GauravDataView::~GauravDataView() {}
+ContextSensitiveDataView::~ContextSensitiveDataView() {}
 
-void GauravDataView::ReadSource(string filename) {
+void ContextSensitiveDataView::ReadSource(string filename) {
   ifstream f(filename);
   for (string line; getline(f, line);) {
     vector<string> pieces = tokenize(line, "|||");
@@ -146,7 +146,7 @@ void GauravDataView::ReadSource(string filename) {
   f.close();
 }
 
-void GauravDataView::Initialize(KbestListInRam* kbest_list, const string& source_filename) {
+void ContextSensitiveDataView::Initialize(KbestListInRam* kbest_list, const string& source_filename) {
   ReadSource(source_filename);
   vector<KbestHypothesis> hypotheses;
   while (kbest_list->NextSet(hypotheses)) {
@@ -177,43 +177,43 @@ void GauravDataView::Initialize(KbestListInRam* kbest_list, const string& source
   assert (alignments.size() == metric_scores.size());
 }
 
-unsigned GauravDataView::size() const {
+unsigned ContextSensitiveDataView::size() const {
   return target_strings.size();
 }
 
-unsigned GauravDataView::num_hyps(unsigned sent_index) const {
+unsigned ContextSensitiveDataView::num_hyps(unsigned sent_index) const {
   assert (sent_index < target_strings.size());
   return target_strings[sent_index].size();
 }
 
-string GauravDataView::GetSentenceId(unsigned sent_index) const {
+string ContextSensitiveDataView::GetSentenceId(unsigned sent_index) const {
   assert (sent_index < target_strings.size());
   return sentence_ids[sent_index];
 }
 
-vector<string> GauravDataView::GetSourceString(unsigned sent_index) const {
+vector<string> ContextSensitiveDataView::GetSourceString(unsigned sent_index) const {
   return GetSourceString(GetSentenceId(sent_index));
 }
 
-vector<string> GauravDataView::GetSourceString(const string& sent_id) const {
+vector<string> ContextSensitiveDataView::GetSourceString(const string& sent_id) const {
   auto it = src_sentences.find(sent_id);
   assert (it != src_sentences.end());
   return it->second;
 }
 
-vector<string> GauravDataView::GetTargetString(unsigned sent_index, unsigned hyp_index) const {
+vector<string> ContextSensitiveDataView::GetTargetString(unsigned sent_index, unsigned hyp_index) const {
   assert (sent_index < target_strings.size());
   assert (hyp_index < target_strings[sent_index].size());
   return target_strings[sent_index][hyp_index];
 }
 
-vector<PhraseAlignmentLink> GauravDataView::GetAlignment(unsigned sent_index, unsigned hyp_index) const {
+vector<PhraseAlignmentLink> ContextSensitiveDataView::GetAlignment(unsigned sent_index, unsigned hyp_index) const {
   assert (sent_index < target_strings.size());
   assert (hyp_index < target_strings[sent_index].size());
   return alignments[sent_index][hyp_index];
 }
 
-Expression GauravDataView::GetMetricScore(unsigned sent_index, unsigned hyp_index, ComputationGraph& cg) const {
+Expression ContextSensitiveDataView::GetMetricScore(unsigned sent_index, unsigned hyp_index, ComputationGraph& cg) const {
   assert (sent_index < target_strings.size());
   assert (hyp_index < target_strings[sent_index].size());
   return input(cg, metric_scores[sent_index][hyp_index]);
@@ -222,8 +222,8 @@ Expression GauravDataView::GetMetricScore(unsigned sent_index, unsigned hyp_inde
 CombinedDataView::CombinedDataView(KbestListInRam* kbest_list, const string& source_filename) {
   simple = new SimpleDataView(kbest_list);
   kbest_list->Reset();
-  gaurav = new GauravDataView(kbest_list, source_filename);
-  assert (simple->size() == gaurav->size());
+  context_data = new ContextSensitiveDataView(kbest_list, source_filename);
+  assert (simple->size() == context_data->size());
 }
 
 CombinedDataView::~CombinedDataView() {
@@ -232,15 +232,15 @@ CombinedDataView::~CombinedDataView() {
     simple = NULL;
   }
 
-  if (gaurav != NULL) {
-    delete gaurav;
-    gaurav = NULL;
+  if (context_data != NULL) {
+    delete context_data;
+    context_data = NULL;
   }
 }
 
 unsigned CombinedDataView::size() const {
   unsigned s = simple->size();
-  unsigned g = gaurav->size();
+  unsigned g = context_data->size();
   assert (s == g);
   return s;
 }
@@ -248,10 +248,10 @@ unsigned CombinedDataView::size() const {
 void CombinedDataView::Initialize(KbestListInRam* kbest_list, const string& source_filename) {
   simple->Initialize(kbest_list, source_filename);
   kbest_list->Reset();
-  gaurav->Initialize(kbest_list, source_filename);
+  context_data->Initialize(kbest_list, source_filename);
 }
 
 CombinedDataView::CombinedDataView() {
   simple = NULL;
-  gaurav = NULL;
+  context_data = NULL;
 }

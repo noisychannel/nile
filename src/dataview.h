@@ -4,7 +4,7 @@
 #include <boost/serialization/export.hpp>
 #include <boost/serialization/map.hpp>
 #include <vector>
-#include "gaurav.h"
+#include "context_sensitive_model.h"
 #include "kbestlist.h"
 using namespace std;
 
@@ -64,10 +64,10 @@ private:
 };
 BOOST_CLASS_EXPORT_KEY(SimpleDataView)
 
-class GauravDataView : public KbestListInRamDataView {
+class ContextSensitiveDataView : public KbestListInRamDataView {
 public:
-  explicit GauravDataView(KbestListInRam* kbest_list, const string& source_filename);
-  ~GauravDataView();
+  explicit ContextSensitiveDataView(KbestListInRam* kbest_list, const string& source_filename);
+  ~ContextSensitiveDataView();
   unsigned size() const;
   unsigned num_hyps(unsigned sent_index) const;
   string GetSentenceId(unsigned sent_index) const;
@@ -78,7 +78,7 @@ public:
   Expression GetMetricScore(unsigned sent_index, unsigned hyp_index, ComputationGraph& cg) const;
   void Initialize(KbestListInRam* kbest_list, const string& source_filename); 
 private:
-  GauravDataView();
+  ContextSensitiveDataView();
   void ReadSource(string filename); 
   vector<string> sentence_ids;
   unordered_map<string, vector<string> > src_sentences;
@@ -89,10 +89,10 @@ private:
   friend class boost::serialization::access;
   template<class Archive>
   void serialize(Archive& ar, const unsigned int) {
-    boost::serialization::void_cast_register<GauravDataView, KbestListInRamDataView>();
+    boost::serialization::void_cast_register<ContextSensitiveDataView, KbestListInRamDataView>();
   }
 };
-BOOST_CLASS_EXPORT_KEY(GauravDataView)
+BOOST_CLASS_EXPORT_KEY(ContextSensitiveDataView)
 
 class CombinedDataView : public KbestListInRamDataView {
 public:
@@ -102,7 +102,7 @@ public:
   void Initialize(KbestListInRam* kbest_list, const string& source_filename);
 
   SimpleDataView* simple;
-  GauravDataView* gaurav;
+  ContextSensitiveDataView* context_data;
 
 private:
   CombinedDataView();
@@ -111,7 +111,7 @@ private:
   void serialize(Archive& ar, const unsigned int) {
     boost::serialization::void_cast_register<CombinedDataView, KbestListInRamDataView>();
     ar & simple;
-    ar & gaurav;
+    ar & context_data;
   }
 };
 BOOST_CLASS_EXPORT_KEY(CombinedDataView)

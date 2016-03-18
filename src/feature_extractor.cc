@@ -1,7 +1,7 @@
 #include <iostream>
 #include "feature_extractor.h"
 BOOST_CLASS_EXPORT_IMPLEMENT(SimpleKbestFeatureExtractor)
-BOOST_CLASS_EXPORT_IMPLEMENT(GauravsFeatureExtractor)
+BOOST_CLASS_EXPORT_IMPLEMENT(ContextSensitiveFeatureExtractor)
 BOOST_CLASS_EXPORT_IMPLEMENT(CombinedFeatureExtractor)
 
 KbestFeatureExtractor::~KbestFeatureExtractor() {}
@@ -64,42 +64,42 @@ unsigned SimpleKbestFeatureExtractor::num_dimensions() const {
   return data->num_features();
 }
 
-GauravsFeatureExtractor::GauravsFeatureExtractor() : data(NULL), gauravs_model(NULL) {
+ContextSensitiveFeatureExtractor::ContextSensitiveFeatureExtractor() : data(NULL), context_sensitive_model(NULL) {
   Reset();
 }
 
-GauravsFeatureExtractor::GauravsFeatureExtractor(GauravDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file, const bool use_concat_mlp, const bool use_rand_emb) : data(data), has_parent(false) {
-  gauravs_model = new GauravsModel(cnn_model, source_embedding_file, target_embedding_file, use_concat_mlp, use_rand_emb);
+ContextSensitiveFeatureExtractor::ContextSensitiveFeatureExtractor(ContextSensitiveDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file, const bool use_concat_mlp, const bool use_rand_emb) : data(data), has_parent(false) {
+  context_sensitive_model = new ContextSensitiveModel(cnn_model, source_embedding_file, target_embedding_file, use_concat_mlp, use_rand_emb);
   Reset();
 }
 
-GauravsFeatureExtractor::GauravsFeatureExtractor(GauravDataView* data, GauravsFeatureExtractor* parent) : data(data), has_parent(true) {
-  gauravs_model = parent->gauravs_model;
+ContextSensitiveFeatureExtractor::ContextSensitiveFeatureExtractor(ContextSensitiveDataView* data, ContextSensitiveFeatureExtractor* parent) : data(data), has_parent(true) {
+  context_sensitive_model = parent->context_sensitive_model;
   Reset(); 
 }
 
-GauravsFeatureExtractor::~GauravsFeatureExtractor() {
-  if (has_parent && gauravs_model != NULL) {
-    delete gauravs_model;
-    gauravs_model = NULL;
+ContextSensitiveFeatureExtractor::~ContextSensitiveFeatureExtractor() {
+  if (has_parent && context_sensitive_model != NULL) {
+    delete context_sensitive_model;
+    context_sensitive_model = NULL;
   }
 }
 
-void GauravsFeatureExtractor::SetDataPointer(KbestListInRamDataView* data) {
-  this->data = dynamic_cast<GauravDataView*>(data);
+void ContextSensitiveFeatureExtractor::SetDataPointer(KbestListInRamDataView* data) {
+  this->data = dynamic_cast<ContextSensitiveDataView*>(data);
   Reset();
 }
 
-void GauravsFeatureExtractor::InitializeParameters(Model* cnn_model) {
-  gauravs_model->InitializeParameters(cnn_model);
+void ContextSensitiveFeatureExtractor::InitializeParameters(Model* cnn_model) {
+  context_sensitive_model->InitializeParameters(cnn_model);
 }
 
-void GauravsFeatureExtractor::Reset() {
+void ContextSensitiveFeatureExtractor::Reset() {
   sent_index = -1;
   hyp_index = -1;
 }
 
-bool GauravsFeatureExtractor::MoveToNextSentence() {
+bool ContextSensitiveFeatureExtractor::MoveToNextSentence() {
   assert (data->size() > 0);
   sent_index++;
   if (sent_index >= data->size()) {
@@ -116,7 +116,7 @@ bool GauravsFeatureExtractor::MoveToNextSentence() {
   return true;
 }
 
-bool GauravsFeatureExtractor::MoveToNextHypothesis() {
+bool ContextSensitiveFeatureExtractor::MoveToNextHypothesis() {
   hyp_index++;
   if (hyp_index >= data->num_hyps(sent_index)) {
     hyp_index = data->num_hyps(sent_index);
@@ -125,90 +125,89 @@ bool GauravsFeatureExtractor::MoveToNextHypothesis() {
   return true;
 }
 
-Expression GauravsFeatureExtractor::GetFeatures(ComputationGraph& cg) const {
+Expression ContextSensitiveFeatureExtractor::GetFeatures(ComputationGraph& cg) const {
   //cerr << "CG : Num nodes = " << cg.nodes.size() << " ||| " << cg.parameter_nodes.size() << endl;
   string sent_id = data->GetSentenceId(sent_index);
   vector<string> src_words = data->GetSourceString(sent_id);
-  vector<unsigned> src = gauravs_model->ConvertSourceSentence(src_words);
+  vector<unsigned> src = context_sensitive_model->ConvertSourceSentence(src_words);
   vector<string> tgt_words = data->GetTargetString(sent_index, hyp_index);
-  vector<unsigned> tgt = gauravs_model->ConvertTargetSentence(tgt_words);
+  vector<unsigned> tgt = context_sensitive_model->ConvertTargetSentence(tgt_words);
   vector<PhraseAlignmentLink> alignment = data->GetAlignment(sent_index, hyp_index);
-  return gauravs_model->GetRuleContext(src, tgt, alignment, cg, exp_cache);
+  return context_sensitive_model->GetRuleContext(src, tgt, alignment, cg, exp_cache);
 }
 
-Expression GauravsFeatureExtractor::GetMetricScore(ComputationGraph& cg) const {
+Expression ContextSensitiveFeatureExtractor::GetMetricScore(ComputationGraph& cg) const {
   return data->GetMetricScore(sent_index, hyp_index, cg);
 }
 
-unsigned GauravsFeatureExtractor::num_dimensions() const {
-  return gauravs_model->OutputDimension();
+unsigned ContextSensitiveFeatureExtractor::num_dimensions() const {
+  return context_sensitive_model->OutputDimension();
 }
 
-CombinedFeatureExtractor::CombinedFeatureExtractor() : simple_extractor(NULL), gauravs_extractor(NULL) {
+CombinedFeatureExtractor::CombinedFeatureExtractor() : simple_extractor(NULL), context_sensitive_extractor(NULL) {
 }
 
 CombinedFeatureExtractor::CombinedFeatureExtractor(CombinedDataView* data, Model& cnn_model, const string& source_embedding_file, const string& target_embedding_file, const bool use_concat_mlp, const bool use_rand_emb) : data(data) {
   simple_extractor = new SimpleKbestFeatureExtractor(data->simple);
-  gauravs_extractor = new GauravsFeatureExtractor(data->gaurav, cnn_model, source_embedding_file, target_embedding_file, use_concat_mlp, use_rand_emb);
+  context_sensitive_extractor = new ContextSensitiveFeatureExtractor(data->context_data, cnn_model, source_embedding_file, target_embedding_file, use_concat_mlp, use_rand_emb);
   Reset();
 }
 
 CombinedFeatureExtractor::CombinedFeatureExtractor(CombinedDataView* data, CombinedFeatureExtractor* parent) {
   simple_extractor = new SimpleKbestFeatureExtractor(data->simple);
-  gauravs_extractor = new GauravsFeatureExtractor(data->gaurav, parent->gauravs_extractor);
+  context_sensitive_extractor = new ContextSensitiveFeatureExtractor(data->context_data, parent->context_sensitive_extractor);
   Reset();
 }
 
 bool CombinedFeatureExtractor::MoveToNextSentence() {
   bool s = simple_extractor->MoveToNextSentence();
-  bool g = gauravs_extractor->MoveToNextSentence();
+  bool g = context_sensitive_extractor->MoveToNextSentence();
   assert (s == g);
   return s;
 }
 
 bool CombinedFeatureExtractor::MoveToNextHypothesis() {
   bool s = simple_extractor->MoveToNextHypothesis();
-  bool g = gauravs_extractor->MoveToNextHypothesis();
+  bool g = context_sensitive_extractor->MoveToNextHypothesis();
   assert (s == g);
   return s;
 }
 
 Expression CombinedFeatureExtractor::GetFeatures(ComputationGraph& cg) const {
   Expression simple_feats = simple_extractor->GetFeatures(cg);
-  Expression gaurav_feats = gauravs_extractor->GetFeatures(cg);
-  return concatenate({simple_feats, gaurav_feats});
+  Expression context_feats = context_sensitive_extractor->GetFeatures(cg);
+  return concatenate({simple_feats, context_feats});
 }
 
 Expression CombinedFeatureExtractor::GetMetricScore(ComputationGraph& cg) const {
-  // XXX: Hopefully Gaurav and Simple return the same metric score
   return simple_extractor->GetMetricScore(cg);
 }
 
 unsigned CombinedFeatureExtractor::num_dimensions() const {
-  return simple_extractor->num_dimensions() + gauravs_extractor->num_dimensions();
+  return simple_extractor->num_dimensions() + context_sensitive_extractor->num_dimensions();
 }
 
 void CombinedFeatureExtractor::Reset() {
   simple_extractor->Reset();
-  gauravs_extractor->Reset();
+  context_sensitive_extractor->Reset();
 }
 
 void CombinedFeatureExtractor::InitializeParameters(Model* cnn_model) {
   simple_extractor->InitializeParameters(cnn_model);
-  gauravs_extractor->InitializeParameters(cnn_model);
+  context_sensitive_extractor->InitializeParameters(cnn_model);
 }
 
 void CombinedFeatureExtractor::SetDataPointer(KbestListInRamDataView* data) {
   this->data = dynamic_cast<CombinedDataView*>(data);
   simple_extractor->SetDataPointer(this->data->simple);
-  gauravs_extractor->SetDataPointer(this->data->gaurav);
+  context_sensitive_extractor->SetDataPointer(this->data->context_data);
   Reset();
 }
 
 CombinedFeatureExtractor::~CombinedFeatureExtractor() {
-  if (gauravs_extractor != NULL) {
-    delete gauravs_extractor;
-    gauravs_extractor = NULL;
+  if (context_sensitive_extractor != NULL) {
+    delete context_sensitive_extractor;
+    context_sensitive_extractor = NULL;
   }
   if (simple_extractor != NULL) {
     delete simple_extractor;

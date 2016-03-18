@@ -30,9 +30,9 @@ struct Params {
 unsigned GetEmbeddingDimension(string filename);
 unordered_map<unsigned, vector<float>> LoadEmbeddings(string filename, unordered_map<string, unsigned>& dict);
 
-class GauravsModel {
+class ContextSensitiveModel {
 public:
-  GauravsModel(Model& cnn_model, const string& src_embedding_filename, const string& tgt_embedding_filename,
+  ContextSensitiveModel(Model& cnn_model, const string& src_embedding_filename, const string& tgt_embedding_filename,
       const bool concat_mlp, const bool use_rand_emb);
   void InitializeParameters(Model* cnn_model);
   void InitializeEmbeddings(const string& filename, bool is_source);
@@ -49,7 +49,7 @@ public:
   const string kBos = "<s>";
   const string kEos = "</s>";
 private:
-  GauravsModel();
+  ContextSensitiveModel();
   bool use_concat_mlp;
   void BuildDictionary(const unordered_map<string, unsigned>& in, Dict& out);
   LookupParameters* src_embeddings;
@@ -104,7 +104,6 @@ private:
   //
   // The embeddings are currently simply summed together to get the feature
   // vector for the hypothesis. This may change in the future.
-  // TODO (gaurav)
   Expression BuildRuleSequenceModel(const vector<Context>& cSeq, ComputationGraph& hg,
         ExpCache& exp_cache);
 
@@ -124,5 +123,6 @@ private:
     ar & tgt_embedding_dimension;
     ar & src_dict;
     ar & tgt_dict;
+    ar & use_concat_mlp;
   }
 };
